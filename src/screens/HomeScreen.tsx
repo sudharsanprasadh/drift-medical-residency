@@ -14,7 +14,7 @@ import AnnouncementCard from '../components/AnnouncementCard';
 import { fetchProgramAnnouncements } from '../services/announcementApi';
 import { Announcement } from '../types';
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation, route }: any) {
   const { profile, refreshProfile } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,15 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     loadData();
   }, [profile]);
+
+  // Refresh announcements when returning from CreateAnnouncement
+  useEffect(() => {
+    if (route.params?.refresh) {
+      loadAnnouncements();
+      // Clear the refresh param
+      navigation.setParams({ refresh: undefined });
+    }
+  }, [route.params?.refresh]);
 
   const loadData = async () => {
     if (!profile) {

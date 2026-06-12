@@ -54,23 +54,17 @@ export default function CreateAnnouncementScreen({ navigation }: any) {
       setLoading(true);
       await createAnnouncement(title.trim(), content.trim());
 
-      Alert.alert(
-        'Success',
-        'Announcement posted successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      // Navigate to Home screen on success
+      navigation.navigate('Home', {
+        screen: 'HomeMain',
+        params: { refresh: true }
+      });
     } catch (error: any) {
       console.error('Error creating announcement:', error);
       Alert.alert(
         'Error',
         error.message || 'Failed to create announcement. Please try again.'
       );
-    } finally {
       setLoading(false);
     }
   };
