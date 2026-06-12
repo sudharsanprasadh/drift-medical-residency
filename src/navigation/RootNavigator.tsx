@@ -14,6 +14,7 @@ import HomeScreen from '../screens/HomeScreen';
 import ApprovalsScreen from '../screens/ApprovalsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CreateAnnouncementScreen from '../screens/CreateAnnouncementScreen';
+import EditAnnouncementScreen from '../screens/EditAnnouncementScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -53,6 +54,11 @@ function HomeStack() {
         name="CreateAnnouncement"
         component={CreateAnnouncementScreen}
         options={{ title: 'New Announcement' }}
+      />
+      <Stack.Screen
+        name="EditAnnouncement"
+        component={EditAnnouncementScreen}
+        options={{ title: 'Edit Announcement' }}
       />
     </Stack.Navigator>
   );

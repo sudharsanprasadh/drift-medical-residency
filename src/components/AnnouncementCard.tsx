@@ -1,12 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Announcement } from '../types';
+import { deleteAnnouncement } from '../services/announcementApi';
 
 interface AnnouncementCardProps {
   announcement: Announcement;
+  currentUserId?: string;
+  onEdit?: (announcement: Announcement) => void;
+  onDelete?: (announcementId: string) => void;
 }
 
-const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement }) => {
+const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
+  announcement,
+  currentUserId,
+  onEdit,
+  onDelete
+}) => {
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -48,6 +57,35 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement }) => 
     return '';
   };
 
+  const isAuthor = currentUserId && announcement.author_id === currentUserId;
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Announcement',
+      'Are you sure you want to delete this announcement? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAnnouncement(announcement.id);
+              if (onDelete) {
+                onDelete(announcement.id);
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete announcement. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -65,6 +103,26 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({ announcement }) => 
         </View>
       </View>
       <Text style={styles.content}>{announcement.content}</Text>
+
+      {/* Edit/Delete buttons for author */}
+      {isAuthor && (
+        <View style={styles.actions}>
+          {onEdit && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => onEdit(announcement)}
+            >
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={handleDelete}
+          >
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -119,6 +177,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#34495e',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+    gap: 8,
+  },
+  actionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#3498db',
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: '#e74c3c',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

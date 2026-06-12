@@ -63,6 +63,15 @@ export default function HomeScreen({ navigation, route }: any) {
     setRefreshing(false);
   };
 
+  const handleEdit = (announcement: Announcement) => {
+    navigation.navigate('EditAnnouncement', { announcement });
+  };
+
+  const handleDelete = (announcementId: string) => {
+    // Remove from local state
+    setAnnouncements((prev: Announcement[]) => prev.filter((a: Announcement) => a.id !== announcementId));
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -115,7 +124,13 @@ export default function HomeScreen({ navigation, route }: any) {
           ) : announcements.length > 0 ? (
             <View style={styles.announcementsList}>
               {announcements.map((announcement: Announcement) => (
-                <AnnouncementCard key={announcement.id} announcement={announcement} />
+                <AnnouncementCard
+                  key={announcement.id}
+                  announcement={announcement}
+                  currentUserId={profile?.id}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
               ))}
             </View>
           ) : (
