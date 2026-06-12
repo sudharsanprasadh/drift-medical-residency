@@ -13,14 +13,6 @@ import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ApprovalsScreen from '../screens/ApprovalsScreen';
 
-// Schedule Screens
-import SchedulesListScreen from '../screens/SchedulesListScreen';
-import ScheduleDetailScreen from '../screens/ScheduleDetailScreen';
-import CreateScheduleScreen from '../screens/CreateScheduleScreen';
-import MyScheduleScreen from '../screens/MyScheduleScreen';
-import SwapRequestsScreen from '../screens/SwapRequestsScreen';
-import ACGMEComplianceScreen from '../screens/ACGMEComplianceScreen';
-
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -33,55 +25,6 @@ function AuthStack() {
     >
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function SchedulesStack() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#3498db',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
-      <Stack.Screen
-        name="SchedulesList"
-        component={SchedulesListScreen}
-        options={{ title: 'Schedules' }}
-      />
-      <Stack.Screen
-        name="ScheduleDetail"
-        component={ScheduleDetailScreen}
-        options={{ title: 'Schedule Details' }}
-      />
-      <Stack.Screen
-        name="CreateSchedule"
-        component={CreateScheduleScreen}
-        options={({ route }: any) => ({
-          title: route.params?.scheduleId ? 'Edit Schedule' : 'Create Schedule',
-        })}
-      />
-      <Stack.Screen
-        name="MySchedule"
-        component={MyScheduleScreen}
-        options={{ title: 'My Schedule' }}
-      />
-      <Stack.Screen
-        name="SwapRequests"
-        component={SwapRequestsScreen}
-        options={{ title: 'Shift Swaps' }}
-      />
-      <Stack.Screen
-        name="Compliance"
-        component={ACGMEComplianceScreen}
-        options={{ title: 'ACGME Compliance' }}
-      />
     </Stack.Navigator>
   );
 }
@@ -112,14 +55,6 @@ function MainTabs() {
         options={{
           title: 'Drift',
           tabBarLabel: 'Home',
-        }}
-      />
-      <Tab.Screen
-        name="Schedules"
-        component={SchedulesStack}
-        options={{
-          headerShown: false,
-          tabBarLabel: 'Schedules',
         }}
       />
       {canManageApprovals && (
