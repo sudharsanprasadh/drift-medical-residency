@@ -142,6 +142,8 @@ export const updateAnnouncement = async (
  * Only the author or admins can delete
  */
 export const deleteAnnouncement = async (announcementId: string): Promise<void> => {
+  console.log('Attempting to delete announcement:', announcementId);
+
   const { error } = await supabase
     .from('announcements')
     .delete()
@@ -149,6 +151,8 @@ export const deleteAnnouncement = async (announcementId: string): Promise<void> 
 
   if (error) {
     console.error('Error deleting announcement:', error);
-    throw new Error('Failed to delete announcement');
+    throw new Error(error.message || 'Failed to delete announcement');
   }
+
+  console.log('Announcement deleted successfully');
 };

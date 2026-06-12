@@ -73,12 +73,18 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Deleting announcement:', announcement.id);
               await deleteAnnouncement(announcement.id);
+              console.log('Delete successful');
               if (onDelete) {
                 onDelete(announcement.id);
               }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete announcement. Please try again.');
+            } catch (error: any) {
+              console.error('Delete error:', error);
+              Alert.alert(
+                'Error',
+                error.message || 'Failed to delete announcement. Please try again.'
+              );
             }
           },
         },
