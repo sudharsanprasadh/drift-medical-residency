@@ -12,6 +12,7 @@ import SignUpScreen from '../screens/SignUpScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ApprovalsScreen from '../screens/ApprovalsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import CreateAnnouncementScreen from '../screens/CreateAnnouncementScreen';
 
 const Stack = createNativeStackNavigator();
@@ -84,6 +85,14 @@ function MainTabs() {
           title: 'Drift',
           tabBarLabel: 'Home',
           headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: 'Profile',
+          tabBarLabel: 'Profile',
         }}
       />
       {canManageApprovals && (
