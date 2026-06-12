@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Announcement } from '../types';
 import { deleteAnnouncement } from '../services/announcementApi';
 
@@ -67,39 +67,54 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
     title: announcement.title
   });
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     console.log('Delete button clicked!');
 
-    Alert.alert(
-      'Delete Announcement',
-      'Are you sure you want to delete this announcement? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('Deleting announcement:', announcement.id);
-              await deleteAnnouncement(announcement.id);
-              console.log('Delete successful');
-              if (onDelete) {
-                onDelete(announcement.id);
-              }
-            } catch (error: any) {
-              console.error('Delete error:', error);
-              Alert.alert(
-                'Error',
-                error.message || 'Failed to delete announcement. Please try again.'
-              );
-            }
-          },
-        },
-      ]
-    );
+    // Use window.confirm for web, Alert for native
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to delete this announcement? This action cannot be undone.')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Delete Announcement',
+            'Are you sure you want to delete this announcement? This action cannot be undone.',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => resolve(false),
+              },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => resolve(true),
+              },
+            ]
+          );
+        });
+
+    if (!confirmed) {
+      console.log('Delete cancelled');
+      return;
+    }
+
+    try {
+      console.log('Deleting announcement:', announcement.id);
+      await deleteAnnouncement(announcement.id);
+      console.log('Delete successful');
+      if (onDelete) {
+        onDelete(announcement.id);
+      }
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      if (Platform.OS === 'web') {
+        window.alert(error.message || 'Failed to delete announcement. Please try again.');
+      } else {
+        Alert.alert(
+          'Error',
+          error.message || 'Failed to delete announcement. Please try again.'
+        );
+      }
+    }
   };
 
   return (
