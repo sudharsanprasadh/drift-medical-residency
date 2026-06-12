@@ -59,7 +59,17 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 
   const isAuthor = currentUserId && announcement.author_id === currentUserId;
 
+  // Debug logging
+  console.log('AnnouncementCard debug:', {
+    currentUserId,
+    author_id: announcement.author_id,
+    isAuthor,
+    title: announcement.title
+  });
+
   const handleDelete = () => {
+    console.log('Delete button clicked!');
+
     Alert.alert(
       'Delete Announcement',
       'Are you sure you want to delete this announcement? This action cannot be undone.',
