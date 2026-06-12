@@ -12,6 +12,7 @@ import SignUpScreen from '../screens/SignUpScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ApprovalsScreen from '../screens/ApprovalsScreen';
+import CreateAnnouncementScreen from '../screens/CreateAnnouncementScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -25,6 +26,33 @@ function AuthStack() {
     >
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function HomeStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#3498db',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="HomeMain"
+        component={HomeScreen}
+        options={{ title: 'Drift', headerShown: false }}
+      />
+      <Stack.Screen
+        name="CreateAnnouncement"
+        component={CreateAnnouncementScreen}
+        options={{ title: 'New Announcement' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -51,10 +79,11 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeStack}
         options={{
           title: 'Drift',
           tabBarLabel: 'Home',
+          headerShown: false,
         }}
       />
       {canManageApprovals && (

@@ -58,3 +58,15 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
+
+export interface Announcement {
+  id: string;
+  program_id: string;
+  author_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  author?: Profile;
+  program?: Program;
+}

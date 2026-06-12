@@ -10,17 +10,22 @@ import {
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
+import AnnouncementCard from '../components/AnnouncementCard';
 import { getUserApprovalStatus } from '../services/api';
-import { ApprovalRequest } from '../types';
+import { fetchProgramAnnouncements } from '../services/announcementApi';
+import { ApprovalRequest, Announcement } from '../types';
 
 export default function HomeScreen({ navigation }: any) {
   const { profile, refreshProfile, signOut } = useAuth();
   const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
 
   useEffect(() => {
     loadApprovalStatus();
+    loadAnnouncements();
   }, [profile]);
 
   const loadApprovalStatus = async () => {
@@ -35,10 +40,24 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  const loadAnnouncements = async () => {
+    if (!profile?.program_id) return;
+    try {
+      setAnnouncementsLoading(true);
+      const data = await fetchProgramAnnouncements();
+      setAnnouncements(data);
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+    } finally {
+      setAnnouncementsLoading(false);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshProfile();
     await loadApprovalStatus();
+    await loadAnnouncements();
     setRefreshing(false);
   };
 
@@ -71,6 +90,44 @@ export default function HomeScreen({ navigation }: any) {
           {profile?.first_name || 'User'}
         </Text>
       </View>
+
+      {/* Announcements Section */}
+      {canAccessFullFeatures && (
+        <View style={styles.announcementsSection}>
+          <View style={styles.announcementHeader}>
+            <Text style={styles.sectionTitle}>Announcements</Text>
+            {(profile?.role === 'chief_resident' || profile?.role === 'admin') && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('CreateAnnouncement')}
+                style={styles.createButton}
+              >
+                <Text style={styles.createButtonText}>+ New</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {announcementsLoading ? (
+            <View style={styles.announcementsLoading}>
+              <ActivityIndicator size="small" color="#3498db" />
+            </View>
+          ) : announcements.length > 0 ? (
+            <View style={styles.announcementsList}>
+              {announcements.map((announcement: Announcement) => (
+                <AnnouncementCard key={announcement.id} announcement={announcement} />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No announcements yet</Text>
+              {(profile?.role === 'chief_resident' || profile?.role === 'admin') && (
+                <Text style={styles.emptyStateSubtext}>
+                  Be the first to post an announcement!
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Profile Card */}
       <View style={styles.card}>
@@ -289,5 +346,54 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 32,
+  },
+  announcementsSection: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  announcementHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  createButton: {
+    backgroundColor: '#3498db',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  announcementsList: {
+    marginTop: 8,
+  },
+  announcementsLoading: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyState: {
+    backgroundColor: '#fff',
+    padding: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#95a5a6',
+    textAlign: 'center',
   },
 });
