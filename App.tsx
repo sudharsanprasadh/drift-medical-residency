@@ -10,6 +10,8 @@ const linking = {
     screens: {
       Login: 'login',
       SignUp: 'signup',
+      ForgotPassword: 'forgot-password',
+      ResetPassword: 'reset-password',
       CompleteProfile: 'complete-profile',
       Home: {
         path: 'home',
