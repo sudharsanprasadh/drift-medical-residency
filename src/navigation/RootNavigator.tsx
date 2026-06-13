@@ -15,6 +15,8 @@ import ApprovalsScreen from '../screens/ApprovalsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CreateAnnouncementScreen from '../screens/CreateAnnouncementScreen';
 import EditAnnouncementScreen from '../screens/EditAnnouncementScreen';
+import EventsScreen from '../screens/EventsScreen';
+import CreateEventScreen from '../screens/CreateEventScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -64,11 +66,38 @@ function HomeStack() {
   );
 }
 
+function EventsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#3498db',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="EventsList"
+        component={EventsScreen}
+        options={{ title: 'Events', headerShown: false }}
+      />
+      <Stack.Screen
+        name="CreateEvent"
+        component={CreateEventScreen}
+        options={{ title: 'Create Event' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   const { profile } = useAuth();
   const isApproved = profile?.is_approved;
   const canManageApprovals =
-    isApproved && (profile?.role === 'admin' || profile?.role === 'chief_resident');
+    isApproved && (profile?.role === 'admin' || profile?.role === 'chief_resident' || profile?.role === 'program_coordinator');
 
   return (
     <Tab.Navigator
@@ -90,6 +119,15 @@ function MainTabs() {
         options={{
           title: 'Drift',
           tabBarLabel: 'Home',
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Events"
+        component={EventsStack}
+        options={{
+          title: 'Events',
+          tabBarLabel: 'Events',
           headerShown: false,
         }}
       />

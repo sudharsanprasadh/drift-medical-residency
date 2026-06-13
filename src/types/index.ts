@@ -70,3 +70,36 @@ export interface Announcement {
   author?: Profile;
   program?: Program;
 }
+
+export type EventType =
+  | 'conference'
+  | 'meeting'
+  | 'social'
+  | 'educational'
+  | 'grand_rounds'
+  | 'morning_report'
+  | 'other';
+
+export type EventVisibility = 'public' | 'private';
+
+export interface Event {
+  id: string;
+  program_id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  event_type: EventType;
+  event_date: string; // ISO date string
+  event_time: string; // HH:MM:SS format
+  duration_minutes: number | null;
+  venue: string;
+  visibility: EventVisibility;
+  contact_info: string | null;
+  notes: string | null;
+  is_published: boolean;
+  is_cancelled: boolean;
+  created_at: string;
+  updated_at: string;
+  creator?: Profile;
+  program?: Program;
+}
