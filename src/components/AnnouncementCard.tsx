@@ -53,6 +53,8 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
       return 'Chief Resident';
     } else if (role === 'admin') {
       return 'Program Director';
+    } else if (role === 'program_coordinator') {
+      return 'Program Coordinator';
     }
     return '';
   };

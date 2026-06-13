@@ -110,6 +110,8 @@ export default function ProfileScreen({ navigation }: any) {
               ? 'Chief Resident'
               : profile?.role === 'admin'
               ? 'Program Director'
+              : profile?.role === 'program_coordinator'
+              ? 'Program Coordinator'
               : 'Resident'}
           </Text>
         </View>
@@ -158,9 +160,9 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* Admin/Chief Actions */}
+      {/* Admin/Chief/Coordinator Actions */}
       {canAccessFullFeatures &&
-        (profile?.role === 'admin' || profile?.role === 'chief_resident') && (
+        (profile?.role === 'admin' || profile?.role === 'chief_resident' || profile?.role === 'program_coordinator') && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Quick Actions</Text>
             <TouchableOpacity

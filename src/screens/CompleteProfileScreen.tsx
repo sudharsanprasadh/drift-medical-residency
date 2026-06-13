@@ -26,7 +26,7 @@ export default function CompleteProfileScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [role, setRole] = useState<'resident' | 'chief_resident'>('resident');
+  const [role, setRole] = useState<'resident' | 'chief_resident' | 'program_coordinator'>('resident');
 
   // PGY dropdown
   const [selectedPGY, setSelectedPGY] = useState<PGYLevel | ''>('');
@@ -108,8 +108,8 @@ export default function CompleteProfileScreen() {
         'Profile Submitted',
         `Your profile has been submitted for approval. ${
           role === 'resident'
-            ? 'A Chief Resident from your program will review it.'
-            : 'An Admin or existing Chief Resident will review it.'
+            ? 'A Chief Resident or Program Coordinator from your program will review it.'
+            : 'An Admin or existing Chief Resident/Coordinator will review it.'
         }`
       );
     } catch (error: any) {
@@ -201,6 +201,24 @@ export default function CompleteProfileScreen() {
                   ]}
                 >
                   Chief Resident
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === 'program_coordinator' && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole('program_coordinator')}
+                disabled={loading}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'program_coordinator' && styles.roleButtonTextActive,
+                  ]}
+                >
+                  Program Coordinator
                 </Text>
               </TouchableOpacity>
             </View>
