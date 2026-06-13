@@ -93,7 +93,7 @@ export default function CreateEventScreen({ navigation }: any) {
       });
 
       showAlert('Event created successfully', () => {
-        navigation.goBack();
+        navigation.navigate('EventsList', { refresh: Date.now() });
       });
     } catch (error: any) {
       showAlert(`Error: ${error.message}`);

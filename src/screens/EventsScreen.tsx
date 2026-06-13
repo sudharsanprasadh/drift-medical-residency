@@ -12,7 +12,7 @@ import { useAuth } from '../services/AuthContext';
 import { fetchProgramEvents } from '../services/eventApi';
 import { Event } from '../types';
 
-export default function EventsScreen({ navigation }: any) {
+export default function EventsScreen({ navigation, route }: any) {
   const { profile } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,13 @@ export default function EventsScreen({ navigation }: any) {
   useEffect(() => {
     loadEvents();
   }, []);
+
+  // Reload events when returning from create screen
+  useEffect(() => {
+    if (route.params?.refresh) {
+      loadEvents();
+    }
+  }, [route.params?.refresh]);
 
   const loadEvents = async () => {
     try {
