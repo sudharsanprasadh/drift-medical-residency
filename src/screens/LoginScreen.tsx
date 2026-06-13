@@ -49,6 +49,8 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleLogin = async () => {
+    console.log('🔵 Login button clicked');
+
     if (!email || !password) {
       showAlert('Error', 'Please fill in all fields');
       return;
@@ -56,11 +58,11 @@ export default function LoginScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      console.log('Attempting login for:', email);
+      console.log('🔵 Attempting login for:', email);
       await signIn(email, password);
-      console.log('Login successful');
+      console.log('🟢 Login successful - auth should redirect automatically');
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('🔴 Login error:', error);
 
       // Show detailed error message
       let errorMessage = 'Unknown error occurred';
