@@ -33,6 +33,24 @@ export default function ProfileScreen({ navigation }: any) {
       ]);
       setApprovalRequest(request);
       setProgramMembers(members);
+
+      // Debug logging
+      console.log('Program Members loaded:', {
+        programId: profile.program_id,
+        totalMembers: members.length,
+        membersByRole: {
+          admins: members.filter(m => m.role === 'admin').length,
+          coordinators: members.filter(m => m.role === 'program_coordinator').length,
+          chiefs: members.filter(m => m.role === 'chief_resident').length,
+          residents: members.filter(m => m.role === 'resident').length,
+        },
+        members: members.map(m => ({
+          name: `${m.first_name} ${m.last_name}`,
+          role: m.role,
+          approved: m.is_approved,
+          complete: m.is_profile_complete
+        }))
+      });
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
