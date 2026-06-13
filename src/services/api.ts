@@ -99,7 +99,7 @@ export const getPendingApprovals = async (): Promise<ApprovalRequest[]> => {
     .from('approval_requests')
     .select(`
       *,
-      profile:profiles(
+      profile:profiles!approval_requests_user_id_fkey(
         *,
         program:programs(*)
       )
