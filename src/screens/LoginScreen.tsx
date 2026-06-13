@@ -40,9 +40,17 @@ export default function LoginScreen({ navigation }: any) {
     testConnection();
   }, []);
 
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -55,17 +63,22 @@ export default function LoginScreen({ navigation }: any) {
       console.error('Login error:', error);
 
       // Show detailed error message
-      let errorMessage = error.message || 'Unknown error occurred';
+      let errorMessage = 'Unknown error occurred';
 
+      // Check for specific error types
       if (error.message?.includes('Email not confirmed')) {
         errorMessage = 'Please confirm your email address. Check your inbox for the confirmation link.';
-      } else if (error.message?.includes('Invalid login credentials')) {
+      } else if (error.message?.includes('Invalid login credentials') || error.message?.includes('Invalid email or password')) {
         errorMessage = 'Invalid email or password. Please check your credentials and try again.';
       } else if (error.message?.includes('Email rate limit exceeded')) {
         errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+      } else if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
-      Alert.alert('Login Failed', errorMessage);
+      showAlert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }

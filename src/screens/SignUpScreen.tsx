@@ -20,32 +20,51 @@ export default function SignUpScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
+  const showAlert = (title: string, message: string, onOk?: () => void) => {
+    if (Platform.OS === 'web') {
+      alert(`${title}\n\n${message}`);
+      onOk?.();
+    } else {
+      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
+    }
+  };
+
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showAlert('Error', 'Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showAlert('Error', 'Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     try {
       await signUp(email, password);
-      Alert.alert(
+      showAlert(
         'Success',
         'Account created! Please check your email to verify your account, then sign in.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+        () => navigation.navigate('Login')
       );
     } catch (error: any) {
-      Alert.alert('Sign Up Failed', error.message);
+      let errorMessage = 'Unknown error occurred';
+
+      if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
+        errorMessage = 'This email is already registered. Please sign in instead.';
+      } else if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      showAlert('Sign Up Failed', errorMessage);
     } finally {
       setLoading(false);
     }
