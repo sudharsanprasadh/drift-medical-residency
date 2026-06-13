@@ -18,7 +18,7 @@ import { completeProfile, getSpecialties, searchPrograms } from '../services/api
 import { Specialty, Program, PGYLevel } from '../types';
 
 export default function CompleteProfileScreen() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -271,6 +271,14 @@ export default function CompleteProfileScreen() {
               ) : (
                 <Text style={styles.buttonText}>Submit for Approval</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.signOutLink}
+              onPress={signOut}
+              disabled={loading}
+            >
+              <Text style={styles.signOutLinkText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -563,5 +571,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
+  },
+  signOutLink: {
+    marginTop: 16,
+    padding: 12,
+    alignItems: 'center',
+  },
+  signOutLinkText: {
+    fontSize: 15,
+    color: '#7f8c8d',
+    textDecorationLine: 'underline',
   },
 });
