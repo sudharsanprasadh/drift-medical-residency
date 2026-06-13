@@ -10,8 +10,10 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../services/AuthContext';
 
 export default function ResetPasswordScreen({ navigation }: any) {
+  const { clearPasswordRecovery } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,13 +26,6 @@ export default function ResetPasswordScreen({ navigation }: any) {
 
   const checkSession = async () => {
     try {
-      // On web, Supabase puts the token in the URL hash
-      // The session should already be set by Supabase from the URL
-      if (Platform.OS === 'web') {
-        // Give Supabase a moment to process the hash params
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       console.log('Password reset session check:', session ? 'Valid' : 'Invalid');
 
@@ -39,14 +34,16 @@ export default function ResetPasswordScreen({ navigation }: any) {
       } else {
         showAlert('Error', 'Invalid or expired reset link. Please request a new one.');
         setTimeout(() => {
-          navigation.navigate('ForgotPassword');
+          clearPasswordRecovery();
+          // Navigation will happen automatically when recovery mode is cleared
         }, 2000);
       }
     } catch (error) {
       console.error('Session check error:', error);
       showAlert('Error', 'Failed to verify reset link. Please try again.');
       setTimeout(() => {
-        navigation.navigate('ForgotPassword');
+        clearPasswordRecovery();
+        // Navigation will happen automatically when recovery mode is cleared
       }, 2000);
     }
   };
@@ -83,8 +80,15 @@ export default function ResetPasswordScreen({ navigation }: any) {
 
       if (error) throw error;
 
-      showAlert('Success', 'Your password has been reset successfully. You can now sign in with your new password.');
-      navigation.navigate('Login');
+      // Clear password recovery mode
+      clearPasswordRecovery();
+
+      // Sign out to force fresh login with new password
+      await supabase.auth.signOut();
+
+      showAlert('Success', 'Your password has been reset successfully. Please sign in with your new password.');
+
+      // Navigation will happen automatically when auth state changes
     } catch (error: any) {
       console.error('Password update error:', error);
       showAlert('Error', error.message || 'Failed to reset password. Please try again.');

@@ -164,13 +164,29 @@ function MainTabs() {
 }
 
 export default function RootNavigator() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isPasswordRecovery } = useAuth();
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3498db" />
       </View>
+    );
+  }
+
+  // Password recovery mode - show reset password screen
+  if (isPasswordRecovery && user) {
+    return (
+      <Stack.Navigator>
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPasswordScreen}
+          options={{
+            title: 'Reset Password',
+            headerShown: false,
+          }}
+        />
+      </Stack.Navigator>
     );
   }
 
