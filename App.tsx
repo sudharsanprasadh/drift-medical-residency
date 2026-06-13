@@ -8,29 +8,27 @@ const linking = {
   prefixes: ['https://drift-medical-residency-xi.vercel.app', 'exp://'],
   config: {
     screens: {
-      Auth: {
-        screens: {
-          Login: 'login',
-          SignUp: 'signup',
-        },
-      },
+      Login: 'login',
+      SignUp: 'signup',
       CompleteProfile: 'complete-profile',
-      Main: {
+      Home: {
+        path: 'home',
         screens: {
-          HomeTabs: {
-            path: 'home',
-            screens: {
-              Home: 'feed',
-              Events: 'events',
-              Approvals: 'approvals',
-              Profile: 'profile',
-            },
-          },
-          EventDetails: 'event/:id',
-          CreateEvent: 'create-event',
+          HomeMain: '',
           CreateAnnouncement: 'create-announcement',
+          EditAnnouncement: 'edit-announcement',
         },
       },
+      Events: {
+        path: 'events',
+        screens: {
+          EventsList: '',
+          EventDetails: ':id',
+          CreateEvent: 'create',
+        },
+      },
+      Profile: 'profile',
+      Approvals: 'approvals',
     },
   },
 };
@@ -39,7 +37,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer linking={linking}>
+        <NavigationContainer linking={linking as any}>
           <RootNavigator />
         </NavigationContainer>
       </AuthProvider>
