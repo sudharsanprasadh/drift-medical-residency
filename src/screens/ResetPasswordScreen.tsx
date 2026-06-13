@@ -24,16 +24,30 @@ export default function ResetPasswordScreen({ navigation }: any) {
 
   const checkSession = async () => {
     try {
+      // On web, Supabase puts the token in the URL hash
+      // The session should already be set by Supabase from the URL
+      if (Platform.OS === 'web') {
+        // Give Supabase a moment to process the hash params
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('Password reset session check:', session ? 'Valid' : 'Invalid');
+
       if (session) {
         setIsValidSession(true);
       } else {
         showAlert('Error', 'Invalid or expired reset link. Please request a new one.');
-        navigation.navigate('ForgotPassword');
+        setTimeout(() => {
+          navigation.navigate('ForgotPassword');
+        }, 2000);
       }
     } catch (error) {
       console.error('Session check error:', error);
-      navigation.navigate('ForgotPassword');
+      showAlert('Error', 'Failed to verify reset link. Please try again.');
+      setTimeout(() => {
+        navigation.navigate('ForgotPassword');
+      }, 2000);
     }
   };
 

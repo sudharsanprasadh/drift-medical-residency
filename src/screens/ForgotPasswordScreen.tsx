@@ -40,8 +40,13 @@ export default function ForgotPasswordScreen({ navigation }: any) {
 
     setLoading(true);
     try {
+      // Use production URL for password reset redirect
+      const redirectUrl = Platform.OS === 'web'
+        ? 'https://drift-medical-residency-xi.vercel.app/reset-password'
+        : 'exp://localhost:8081/reset-password';
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) throw error;
