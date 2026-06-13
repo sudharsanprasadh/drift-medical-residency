@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import { createEvent } from '../services/eventApi';
-import { EventType, EventVisibility } from '../types';
+import { EventType } from '../types';
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'conference', label: 'Conference' },
@@ -38,7 +38,6 @@ export default function CreateEventScreen({ navigation }: any) {
   const [eventTime, setEventTime] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('');
   const [venue, setVenue] = useState('');
-  const [visibility, setVisibility] = useState<EventVisibility>('public');
   const [contactInfo, setContactInfo] = useState('');
   const [notes, setNotes] = useState('');
   const [isPublished, setIsPublished] = useState(true);
@@ -85,7 +84,7 @@ export default function CreateEventScreen({ navigation }: any) {
         event_time: eventTime + ':00', // Add seconds
         duration_minutes: durationMinutes ? parseInt(durationMinutes, 10) : null,
         venue: venue.trim(),
-        visibility,
+        visibility: 'public',
         contact_info: contactInfo.trim() || null,
         notes: notes.trim() || null,
         is_published: isPublished,
@@ -262,39 +261,6 @@ export default function CreateEventScreen({ navigation }: any) {
         maxLength={200}
         editable={!loading}
       />
-
-      {/* Visibility */}
-      <Text style={styles.label}>Visibility</Text>
-      <View style={styles.visibilityRow}>
-        <TouchableOpacity
-          style={[styles.visibilityButton, visibility === 'public' && styles.visibilityActive]}
-          onPress={() => setVisibility('public')}
-          disabled={loading}
-        >
-          <Text
-            style={[
-              styles.visibilityText,
-              visibility === 'public' && styles.visibilityTextActive,
-            ]}
-          >
-            Public
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.visibilityButton, visibility === 'private' && styles.visibilityActive]}
-          onPress={() => setVisibility('private')}
-          disabled={loading}
-        >
-          <Text
-            style={[
-              styles.visibilityText,
-              visibility === 'private' && styles.visibilityTextActive,
-            ]}
-          >
-            Private
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Contact Info */}
       <Text style={styles.label}>Contact Information</Text>

@@ -107,11 +107,6 @@ export default function EventsScreen({ navigation }: any) {
             {item.venue}
           </Text>
         </View>
-        {item.visibility === 'private' && (
-          <View style={styles.privateTag}>
-            <Text style={styles.privateTagText}>Private</Text>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
   );
