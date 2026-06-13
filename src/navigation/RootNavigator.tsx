@@ -17,6 +17,7 @@ import CreateAnnouncementScreen from '../screens/CreateAnnouncementScreen';
 import EditAnnouncementScreen from '../screens/EditAnnouncementScreen';
 import EventsScreen from '../screens/EventsScreen';
 import CreateEventScreen from '../screens/CreateEventScreen';
+import EventDetailsScreen from '../screens/EventDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -83,6 +84,11 @@ function EventsStack() {
         name="EventsList"
         component={EventsScreen}
         options={{ title: 'Events', headerShown: false }}
+      />
+      <Stack.Screen
+        name="EventDetails"
+        component={EventDetailsScreen}
+        options={{ title: 'Event Details' }}
       />
       <Stack.Screen
         name="CreateEvent"
