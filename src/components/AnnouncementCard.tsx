@@ -41,9 +41,23 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
   };
 
   const getAuthorName = (): string => {
+    // Debug logging
+    console.log('Author data:', {
+      author: announcement.author,
+      first_name: announcement.author?.first_name,
+      last_name: announcement.author?.last_name,
+      email: announcement.author?.email,
+    });
+
     if (announcement.author?.first_name && announcement.author?.last_name) {
       return `${announcement.author.first_name} ${announcement.author.last_name}`;
     }
+
+    // Fallback to email if name not available
+    if (announcement.author?.email) {
+      return announcement.author.email.split('@')[0];
+    }
+
     return 'Unknown Author';
   };
 
