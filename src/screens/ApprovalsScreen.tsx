@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import { getPendingApprovals, approveUser, rejectUser } from '../services/api';
@@ -38,7 +39,11 @@ export default function ApprovalsScreen() {
       setApprovalRequests(requests);
     } catch (error) {
       console.error('❌ Error loading approvals:', error);
-      Alert.alert('Error', 'Failed to load approval requests');
+      if (Platform.OS === 'web') {
+        alert('Failed to load approval requests');
+      } else {
+        Alert.alert('Error', 'Failed to load approval requests');
+      }
     } finally {
       setLoading(false);
     }
@@ -50,30 +55,47 @@ export default function ApprovalsScreen() {
     setRefreshing(false);
   };
 
-  const handleApprove = (request: ApprovalRequest) => {
-    Alert.alert(
-      'Approve User',
-      `Are you sure you want to approve ${request.profile?.first_name} ${request.profile?.last_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          style: 'default',
-          onPress: async () => {
-            setActionLoading(true);
-            try {
-              await approveUser(request.id, request.user_id, profile!.id);
-              Alert.alert('Success', 'User approved successfully');
-              await loadApprovals();
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
-            } finally {
-              setActionLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleApprove = async (request: ApprovalRequest) => {
+    const userName = `${request.profile?.first_name} ${request.profile?.last_name}`;
+    const message = `Are you sure you want to approve ${userName}?`;
+
+    // Use window.confirm on web, Alert.alert on native
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(message)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Approve User',
+            message,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Approve', style: 'default', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      await approveUser(request.id, request.user_id, profile!.id);
+
+      // Show success message
+      if (Platform.OS === 'web') {
+        alert('User approved successfully');
+      } else {
+        Alert.alert('Success', 'User approved successfully');
+      }
+
+      await loadApprovals();
+    } catch (error: any) {
+      if (Platform.OS === 'web') {
+        alert(`Error: ${error.message}`);
+      } else {
+        Alert.alert('Error', error.message);
+      }
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleReject = (request: ApprovalRequest) => {
@@ -83,20 +105,34 @@ export default function ApprovalsScreen() {
 
   const submitRejection = async () => {
     if (!rejectNotes.trim()) {
-      Alert.alert('Error', 'Please provide a reason for rejection');
+      if (Platform.OS === 'web') {
+        alert('Please provide a reason for rejection');
+      } else {
+        Alert.alert('Error', 'Please provide a reason for rejection');
+      }
       return;
     }
 
     setActionLoading(true);
     try {
       await rejectUser(selectedRequest!.id, profile!.id, rejectNotes);
-      Alert.alert('Success', 'User rejected');
+
+      if (Platform.OS === 'web') {
+        alert('User rejected');
+      } else {
+        Alert.alert('Success', 'User rejected');
+      }
+
       setShowRejectModal(false);
       setRejectNotes('');
       setSelectedRequest(null);
       await loadApprovals();
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      if (Platform.OS === 'web') {
+        alert(`Error: ${error.message}`);
+      } else {
+        Alert.alert('Error', error.message);
+      }
     } finally {
       setActionLoading(false);
     }
