@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.drift.medicalresidency",
+      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -26,7 +27,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.drift.medicalresidency"
+      "package": "com.drift.medicalresidency",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
