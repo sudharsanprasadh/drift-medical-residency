@@ -45,6 +45,8 @@ export default function CreateEventScreen({ navigation }: any) {
 
   // Modals
   const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const handleSubmit = async () => {
     // Validation
@@ -110,6 +112,74 @@ export default function CreateEventScreen({ navigation }: any) {
     }
   };
 
+  const formatDateForDisplay = (dateString: string): string => {
+    if (!dateString) return 'Select Date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatTimeForDisplay = (timeString: string): string => {
+    if (!timeString) return 'Select Time';
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const generateDateOptions = () => {
+    const options: { label: string; value: string }[] = [];
+    const today = new Date();
+
+    // Generate next 90 days
+    for (let i = 0; i < 90; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const value = `${year}-${month}-${day}`;
+
+      const label = date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: i > 30 ? 'numeric' : undefined,
+      });
+
+      options.push({ label, value });
+    }
+
+    return options;
+  };
+
+  const generateTimeOptions = () => {
+    const options: { label: string; value: string }[] = [];
+
+    // Generate times from 6 AM to 11 PM in 30-minute intervals
+    for (let hour = 6; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const hourStr = String(hour).padStart(2, '0');
+        const minuteStr = String(minute).padStart(2, '0');
+        const value = `${hourStr}:${minuteStr}`;
+
+        const displayHour = hour % 12 || 12;
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const label = `${displayHour}:${minuteStr} ${ampm}`;
+
+        options.push({ label, value });
+      }
+    }
+
+    return options;
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Create Event</Text>
@@ -145,25 +215,29 @@ export default function CreateEventScreen({ navigation }: any) {
       <Text style={styles.label}>
         Date <Text style={styles.required}>*</Text>
       </Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        placeholder="YYYY-MM-DD"
-        value={eventDate}
-        onChangeText={setEventDate}
-        editable={!loading}
-      />
+        onPress={() => setShowDatePicker(true)}
+        disabled={loading}
+      >
+        <Text style={[styles.inputText, !eventDate && styles.placeholder]}>
+          {formatDateForDisplay(eventDate)}
+        </Text>
+      </TouchableOpacity>
 
       {/* Time */}
       <Text style={styles.label}>
         Time <Text style={styles.required}>*</Text>
       </Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        placeholder="HH:MM (24-hour format)"
-        value={eventTime}
-        onChangeText={setEventTime}
-        editable={!loading}
-      />
+        onPress={() => setShowTimePicker(true)}
+        disabled={loading}
+      >
+        <Text style={[styles.inputText, !eventTime && styles.placeholder]}>
+          {formatTimeForDisplay(eventTime)}
+        </Text>
+      </TouchableOpacity>
 
       {/* Duration */}
       <Text style={styles.label}>Duration (minutes)</Text>
@@ -326,6 +400,68 @@ export default function CreateEventScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* Date Picker Modal */}
+      <Modal visible={showDatePicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Date</Text>
+            <FlatList
+              data={generateDateOptions()}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setEventDate(item.value);
+                    setShowDatePicker(false);
+                  }}
+                >
+                  <Text style={styles.modalItemText}>{item.label}</Text>
+                  {eventDate === item.value && <Text style={styles.modalCheckmark}>✓</Text>}
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal visible={showTimePicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Time</Text>
+            <FlatList
+              data={generateTimeOptions()}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setEventTime(item.value);
+                    setShowTimePicker(false);
+                  }}
+                >
+                  <Text style={styles.modalItemText}>{item.label}</Text>
+                  {eventTime === item.value && <Text style={styles.modalCheckmark}>✓</Text>}
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTimePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -366,6 +502,9 @@ const styles = StyleSheet.create({
   inputText: {
     fontSize: 15,
     color: '#2c3e50',
+  },
+  placeholder: {
+    color: '#95a5a6',
   },
   textArea: {
     height: 100,
