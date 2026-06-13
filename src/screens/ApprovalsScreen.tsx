@@ -207,16 +207,6 @@ export default function ApprovalsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header Info for Chief Residents */}
-      {profile?.role === 'chief_resident' && profile?.program && (
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Your Program Approvals</Text>
-          <Text style={styles.headerSubtitle}>
-            Showing approval requests for: {profile.program.program_name}
-          </Text>
-        </View>
-      )}
-
       <FlatList
         data={approvalRequests}
         keyExtractor={(item) => item.id}
@@ -306,21 +296,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
-  },
-  headerInfo: {
-    backgroundColor: '#3498db',
-    padding: 16,
-    paddingTop: 20,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#ecf0f1',
   },
   listContent: {
     padding: 16,
