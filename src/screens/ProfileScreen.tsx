@@ -10,26 +10,31 @@ import {
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
-import { getUserApprovalStatus } from '../services/api';
-import { ApprovalRequest } from '../types';
+import { getUserApprovalStatus, getProgramMembers } from '../services/api';
+import { ApprovalRequest, Profile } from '../types';
 
 export default function ProfileScreen({ navigation }: any) {
   const { profile, refreshProfile, signOut } = useAuth();
   const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | null>(null);
+  const [programMembers, setProgramMembers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadApprovalStatus();
+    loadData();
   }, [profile]);
 
-  const loadApprovalStatus = async () => {
+  const loadData = async () => {
     if (!profile) return;
     try {
-      const request = await getUserApprovalStatus(profile.id);
+      const [request, members] = await Promise.all([
+        getUserApprovalStatus(profile.id),
+        profile.program_id ? getProgramMembers(profile.program_id) : Promise.resolve([]),
+      ]);
       setApprovalRequest(request);
+      setProgramMembers(members);
     } catch (error) {
-      console.error('Error loading approval status:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -38,7 +43,7 @@ export default function ProfileScreen({ navigation }: any) {
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshProfile();
-    await loadApprovalStatus();
+    await loadData();
     setRefreshing(false);
   };
 
@@ -174,6 +179,50 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
         )}
 
+      {/* Program Members */}
+      {profile?.program && programMembers.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Program Members</Text>
+          <Text style={styles.membersSectionSubtitle}>
+            {profile.program.program_name}
+          </Text>
+
+          {/* Group members by role */}
+          {['admin', 'program_coordinator', 'chief_resident', 'resident'].map((roleType) => {
+            const membersWithRole = programMembers.filter(m => m.role === roleType);
+            if (membersWithRole.length === 0) return null;
+
+            const roleLabel =
+              roleType === 'admin' ? 'Program Directors' :
+              roleType === 'program_coordinator' ? 'Program Coordinators' :
+              roleType === 'chief_resident' ? 'Chief Residents' :
+              'Residents';
+
+            return (
+              <View key={roleType} style={styles.roleGroup}>
+                <Text style={styles.roleGroupTitle}>{roleLabel}</Text>
+                {membersWithRole.map((member) => (
+                  <View key={member.id} style={styles.memberRow}>
+                    <View style={styles.memberInfo}>
+                      <Text style={styles.memberName}>
+                        {member.first_name} {member.last_name}
+                        {member.id === profile.id && <Text style={styles.youTag}> (You)</Text>}
+                      </Text>
+                      {member.pgy && (
+                        <Text style={styles.memberPGY}>{member.pgy}</Text>
+                      )}
+                    </View>
+                    {member.email && (
+                      <Text style={styles.memberEmail}>{member.email}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Sign Out Button */}
       <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
         <Text style={styles.signOutButtonText}>Sign Out</Text>
@@ -285,5 +334,57 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 32,
+  },
+  membersSectionSubtitle: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 16,
+  },
+  roleGroup: {
+    marginBottom: 20,
+  },
+  roleGroupTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#3498db',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  memberRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+  },
+  memberInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  memberName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#2c3e50',
+    flex: 1,
+  },
+  youTag: {
+    fontSize: 13,
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  memberPGY: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    backgroundColor: '#ecf0f1',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    fontWeight: '600',
+  },
+  memberEmail: {
+    fontSize: 13,
+    color: '#95a5a6',
   },
 });

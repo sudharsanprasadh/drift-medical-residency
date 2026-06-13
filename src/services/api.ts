@@ -84,6 +84,27 @@ export const getSpecialties = async (): Promise<Specialty[]> => {
 };
 
 // ============================================
+// PROGRAM MEMBERS OPERATIONS
+// ============================================
+
+/**
+ * Get all approved members of a specific program
+ */
+export const getProgramMembers = async (programId: string): Promise<Profile[]> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('program_id', programId)
+    .eq('is_approved', true)
+    .eq('is_profile_complete', true)
+    .order('role', { ascending: false }) // admin, program_coordinator, chief_resident, resident
+    .order('last_name', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+};
+
+// ============================================
 // APPROVAL OPERATIONS
 // ============================================
 
