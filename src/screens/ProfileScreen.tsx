@@ -87,14 +87,6 @@ export default function ProfileScreen({ navigation }: any) {
         <PendingApprovalBanner />
       )}
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Profile</Text>
-        <Text style={styles.headerSubtitle}>
-          {profile?.first_name} {profile?.last_name}
-        </Text>
-      </View>
-
       {/* Profile Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Personal Information</Text>
