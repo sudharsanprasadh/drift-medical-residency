@@ -31,10 +31,13 @@ export default function ApprovalsScreen() {
 
   const loadApprovals = async () => {
     try {
+      console.log('🔍 Loading approvals... Profile:', profile?.id, profile?.role, profile?.is_approved);
       const requests = await getPendingApprovals();
+      console.log('✅ Loaded approvals:', requests.length, 'requests');
+      console.log('📋 Approval requests:', JSON.stringify(requests, null, 2));
       setApprovalRequests(requests);
     } catch (error) {
-      console.error('Error loading approvals:', error);
+      console.error('❌ Error loading approvals:', error);
       Alert.alert('Error', 'Failed to load approval requests');
     } finally {
       setLoading(false);
