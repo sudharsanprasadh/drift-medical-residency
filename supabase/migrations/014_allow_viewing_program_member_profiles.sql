@@ -6,6 +6,7 @@
 -- ============================================
 
 -- Users can view profiles of other members in the same program
+-- Note: Removed is_approved requirement for viewer so pending users can see program members
 CREATE POLICY "Users can view profiles in their program" ON profiles
     FOR SELECT
     USING (
@@ -13,7 +14,7 @@ CREATE POLICY "Users can view profiles in their program" ON profiles
             SELECT 1 FROM profiles viewer
             WHERE viewer.id = auth.uid()
             AND viewer.program_id = profiles.program_id
-            AND viewer.is_approved = true
+            AND viewer.program_id IS NOT NULL
         )
     );
 
