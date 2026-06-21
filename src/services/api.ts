@@ -23,7 +23,7 @@ export const completeProfile = async (
     first_name: string;
     last_name: string;
     phone_number: string;
-    role: 'resident' | 'chief_resident' | 'program_coordinator';
+    role: 'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'faculty';
     specialty: string;
     program_id: string;
     pgy: PGYLevel;

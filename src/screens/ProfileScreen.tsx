@@ -12,6 +12,7 @@ import { useAuth } from '../services/AuthContext';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
 import { getUserApprovalStatus, getProgramMembers } from '../services/api';
 import { ApprovalRequest, Profile } from '../types';
+import { formatRoleName, canManageProgram } from '../utils/roleHelpers';
 
 export default function ProfileScreen({ navigation }: any) {
   const { profile, refreshProfile, signOut } = useAuth();
@@ -40,8 +41,10 @@ export default function ProfileScreen({ navigation }: any) {
         totalMembers: members.length,
         membersByRole: {
           admins: members.filter(m => m.role === 'admin').length,
+          directors: members.filter(m => m.role === 'program_director').length,
           coordinators: members.filter(m => m.role === 'program_coordinator').length,
           chiefs: members.filter(m => m.role === 'chief_resident').length,
+          faculty: members.filter(m => m.role === 'faculty').length,
           residents: members.filter(m => m.role === 'resident').length,
         },
         members: members.map(m => ({
@@ -121,13 +124,7 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Role:</Text>
           <Text style={styles.infoValue}>
-            {profile?.role === 'chief_resident'
-              ? 'Chief Resident'
-              : profile?.role === 'admin'
-              ? 'Program Director'
-              : profile?.role === 'program_coordinator'
-              ? 'Program Coordinator'
-              : 'Resident'}
+            {profile?.role ? formatRoleName(profile.role) : 'Resident'}
           </Text>
         </View>
         <View style={styles.infoRow}>
@@ -175,9 +172,8 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* Admin/Chief/Coordinator Actions */}
-      {canAccessFullFeatures &&
-        (profile?.role === 'admin' || profile?.role === 'chief_resident' || profile?.role === 'program_coordinator') && (
+      {/* Leadership Actions */}
+      {canAccessFullFeatures && canManageProgram(profile?.role) && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Quick Actions</Text>
             <TouchableOpacity

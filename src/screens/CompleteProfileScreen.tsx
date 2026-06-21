@@ -26,7 +26,7 @@ export default function CompleteProfileScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [role, setRole] = useState<'resident' | 'chief_resident' | 'program_coordinator'>('resident');
+  const [role, setRole] = useState<'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'faculty'>('resident');
 
   // PGY dropdown
   const [selectedPGY, setSelectedPGY] = useState<PGYLevel | ''>('');
@@ -107,9 +107,9 @@ export default function CompleteProfileScreen() {
       Alert.alert(
         'Profile Submitted',
         `Your profile has been submitted for approval. ${
-          role === 'resident'
-            ? 'A Chief Resident or Program Coordinator from your program will review it.'
-            : 'An Admin or existing Chief Resident/Coordinator will review it.'
+          role === 'resident' || role === 'faculty'
+            ? 'A Chief Resident, Program Coordinator, or Program Director from your program will review it.'
+            : 'An Admin or existing leadership member will review it.'
         }`
       );
     } catch (error: any) {
@@ -167,7 +167,12 @@ export default function CompleteProfileScreen() {
 
             {/* Role Selection */}
             <Text style={styles.label}>Role</Text>
-            <View style={styles.roleContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.roleScrollContainer}
+              contentContainerStyle={styles.roleContainer}
+            >
               <TouchableOpacity
                 style={[
                   styles.roleButton,
@@ -183,6 +188,24 @@ export default function CompleteProfileScreen() {
                   ]}
                 >
                   Resident
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === 'faculty' && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole('faculty')}
+                disabled={loading}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'faculty' && styles.roleButtonTextActive,
+                  ]}
+                >
+                  Faculty
                 </Text>
               </TouchableOpacity>
 
@@ -221,7 +244,25 @@ export default function CompleteProfileScreen() {
                   Program Coordinator
                 </Text>
               </TouchableOpacity>
-            </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === 'program_director' && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole('program_director')}
+                disabled={loading}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'program_director' && styles.roleButtonTextActive,
+                  ]}
+                >
+                  Program Director
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
 
             {/* PGY Selection */}
             <Text style={styles.label}>PGY Level</Text>
@@ -471,13 +512,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#95a5a6',
   },
+  roleScrollContainer: {
+    marginBottom: 16,
+  },
   roleContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
     gap: 12,
+    paddingRight: 12,
   },
   roleButton: {
-    flex: 1,
+    minWidth: 140,
     padding: 16,
     borderRadius: 8,
     borderWidth: 2,

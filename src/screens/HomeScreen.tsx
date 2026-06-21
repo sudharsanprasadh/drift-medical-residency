@@ -13,6 +13,7 @@ import PendingApprovalBanner from '../components/PendingApprovalBanner';
 import AnnouncementCard from '../components/AnnouncementCard';
 import { fetchProgramAnnouncements } from '../services/announcementApi';
 import { Announcement } from '../types';
+import { canManageProgram } from '../utils/roleHelpers';
 
 export default function HomeScreen({ navigation, route }: any) {
   const { profile, refreshProfile } = useAuth();
@@ -107,7 +108,7 @@ export default function HomeScreen({ navigation, route }: any) {
         <View style={styles.announcementsSection}>
           <View style={styles.announcementHeader}>
             <Text style={styles.sectionTitle}>Announcements</Text>
-            {(profile?.role === 'chief_resident' || profile?.role === 'admin') && (
+            {canManageProgram(profile?.role) && (
               <TouchableOpacity
                 onPress={() => navigation.navigate('CreateAnnouncement')}
                 style={styles.createButton}
@@ -136,7 +137,7 @@ export default function HomeScreen({ navigation, route }: any) {
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No announcements yet</Text>
-              {(profile?.role === 'chief_resident' || profile?.role === 'admin') && (
+              {canManageProgram(profile?.role) && (
                 <Text style={styles.emptyStateSubtext}>
                   Be the first to post an announcement!
                 </Text>
