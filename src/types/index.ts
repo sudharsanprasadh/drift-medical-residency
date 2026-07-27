@@ -105,3 +105,35 @@ export interface Event {
   creator?: Profile;
   program?: Program;
 }
+
+export type WearableProvider = 'fitbit';
+
+export interface WearableConnection {
+  id: string;
+  user_id: string;
+  provider: WearableProvider;
+  provider_user_id: string;
+  access_token: string;
+  refresh_token: string;
+  scopes: string;
+  expires_at: string;
+  connected_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WellnessMetric {
+  id: string;
+  user_id: string;
+  provider: WearableProvider;
+  metric_date: string; // ISO date string (YYYY-MM-DD)
+  resting_heart_rate: number | null;
+  sleep_minutes: number | null;
+  sleep_efficiency: number | null;
+  steps: number | null;
+  heart_rate_series: { time: string; bpm: number }[] | null;
+  raw_payload: Record<string, unknown> | null;
+  synced_at: string;
+  created_at: string;
+  updated_at: string;
+}
