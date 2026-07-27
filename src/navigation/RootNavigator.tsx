@@ -20,6 +20,7 @@ import EditAnnouncementScreen from '../screens/EditAnnouncementScreen';
 import EventsScreen from '../screens/EventsScreen';
 import CreateEventScreen from '../screens/CreateEventScreen';
 import EventDetailsScreen from '../screens/EventDetailsScreen';
+import WellnessScreen from '../screens/WellnessScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -139,6 +140,14 @@ function MainTabs() {
           title: 'Events',
           tabBarLabel: 'Events',
           headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Wellness"
+        component={WellnessScreen}
+        options={{
+          title: 'Wellness',
+          tabBarLabel: 'Wellness',
         }}
       />
       <Tab.Screen

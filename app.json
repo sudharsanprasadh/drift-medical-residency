@@ -3,6 +3,7 @@
     "name": "Drift",
     "slug": "drift-medical-residency",
     "version": "1.0.0",
+    "scheme": "drift",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

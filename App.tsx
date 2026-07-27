@@ -29,6 +29,7 @@ const linking = {
           CreateEvent: 'create',
         },
       },
+      Wellness: 'wellness',
       Profile: 'profile',
       Approvals: 'approvals',
     },
