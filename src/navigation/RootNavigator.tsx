@@ -21,6 +21,15 @@ import EventsScreen from '../screens/EventsScreen';
 import CreateEventScreen from '../screens/CreateEventScreen';
 import EventDetailsScreen from '../screens/EventDetailsScreen';
 
+// Schedule Screens
+import ScheduleListScreen from '../screens/ScheduleListScreen';
+import ScheduleViewScreen from '../screens/ScheduleViewScreen';
+import CreateWeekScreen from '../screens/CreateWeekScreen';
+import EditScheduleScreen from '../screens/EditScheduleScreen';
+import ConfigureRotationScreen from '../screens/ConfigureRotationScreen';
+import GenerateWeeksScreen from '../screens/GenerateWeeksScreen';
+import DutyHoursScreen from '../screens/DutyHoursScreen';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -103,6 +112,58 @@ function EventsStack() {
   );
 }
 
+function ScheduleStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#3498db',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="ScheduleList"
+        component={ScheduleListScreen}
+        options={{ title: 'Schedule', headerShown: false }}
+      />
+      <Stack.Screen
+        name="ScheduleView"
+        component={ScheduleViewScreen}
+        options={{ title: 'View Schedule' }}
+      />
+      <Stack.Screen
+        name="CreateWeek"
+        component={CreateWeekScreen}
+        options={{ title: 'Create Weekly Schedule' }}
+      />
+      <Stack.Screen
+        name="EditSchedule"
+        component={EditScheduleScreen}
+        options={{ title: 'Edit Schedule' }}
+      />
+      <Stack.Screen
+        name="ConfigureRotation"
+        component={ConfigureRotationScreen}
+        options={{ title: 'Configure Rotation' }}
+      />
+      <Stack.Screen
+        name="GenerateWeeks"
+        component={GenerateWeeksScreen}
+        options={{ title: 'Generate Rotation' }}
+      />
+      <Stack.Screen
+        name="DutyHours"
+        component={DutyHoursScreen}
+        options={{ title: 'Duty Hours' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   const { profile } = useAuth();
   const isApproved = profile?.is_approved;
@@ -138,6 +199,15 @@ function MainTabs() {
         options={{
           title: 'Events',
           tabBarLabel: 'Events',
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Schedule"
+        component={ScheduleStack}
+        options={{
+          title: 'Schedule',
+          tabBarLabel: 'Schedule',
           headerShown: false,
         }}
       />
