@@ -29,6 +29,7 @@ import EditScheduleScreen from '../screens/EditScheduleScreen';
 import ConfigureRotationScreen from '../screens/ConfigureRotationScreen';
 import GenerateWeeksScreen from '../screens/GenerateWeeksScreen';
 import DutyHoursScreen from '../screens/DutyHoursScreen';
+import ProgramMembersScreen from '../screens/ProgramMembersScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -211,6 +212,16 @@ function MainTabs() {
           headerShown: false,
         }}
       />
+      {canManageApprovals && (
+        <Tab.Screen
+          name="Members"
+          component={ProgramMembersScreen}
+          options={{
+            title: 'Program Members',
+            tabBarLabel: 'Members',
+          }}
+        />
+      )}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
