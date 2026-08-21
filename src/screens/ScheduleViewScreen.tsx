@@ -206,8 +206,19 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     const backupResidents = shiftType === 'day' ? cell.day_backup_residents : cell.night_backup_residents;
     const isNight = shiftType === 'night';
 
+    // Check if current user is assigned to this cell
+    const myName = profile ? `${profile.first_name} ${profile.last_name}` : '';
+    const isMyShift =
+      residents.includes(myName) ||
+      backupResidents.includes(myName);
+
     return (
-      <View style={[styles.gridCell, isNight && styles.nightCell]}>
+      <View style={[
+        styles.gridCell,
+        isNight && styles.nightCell,
+        isMyShift && styles.myShiftCell,
+        isMyShift && isNight && styles.myShiftCellNight
+      ]}>
         {renderResidentList(residents, backupResidents, isNight)}
       </View>
     );
@@ -781,6 +792,16 @@ const styles = StyleSheet.create({
   },
   nightCell: {
     backgroundColor: '#34495e',
+  },
+  myShiftCell: {
+    backgroundColor: '#e3f2fd',
+    borderWidth: 2,
+    borderColor: '#2196f3',
+  },
+  myShiftCellNight: {
+    backgroundColor: '#1e3a5f',
+    borderWidth: 2,
+    borderColor: '#64b5f6',
   },
   emptyCell: {
     fontSize: 16,
