@@ -31,6 +31,8 @@ import GenerateWeeksScreen from '../screens/GenerateWeeksScreen';
 import DutyHoursScreen from '../screens/DutyHoursScreen';
 import ProgramMembersScreen from '../screens/ProgramMembersScreen';
 import ManageRolesScreen from '../screens/ManageRolesScreen';
+import SwapRequestsScreen from '../screens/SwapRequestsScreen';
+import CreateSwapRequestScreen from '../screens/CreateSwapRequestScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -167,6 +169,16 @@ function ScheduleStack() {
         component={ManageRolesScreen}
         options={{ title: 'Manage Roles' }}
       />
+      <Stack.Screen
+        name="SwapRequests"
+        component={SwapRequestsScreen}
+        options={{ title: 'Shift Swap Requests' }}
+      />
+      <Stack.Screen
+        name="CreateSwapRequest"
+        component={CreateSwapRequestScreen}
+        options={{ title: 'Request Shift Swap' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -216,6 +228,14 @@ function MainTabs() {
           title: 'Schedule',
           tabBarLabel: 'Schedule',
           headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="Swaps"
+        component={SwapRequestsScreen}
+        options={{
+          title: 'Shift Swaps',
+          tabBarLabel: 'Swaps',
         }}
       />
       {canManageApprovals && (
