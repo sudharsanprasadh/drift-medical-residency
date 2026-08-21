@@ -30,6 +30,7 @@ import ConfigureRotationScreen from '../screens/ConfigureRotationScreen';
 import GenerateWeeksScreen from '../screens/GenerateWeeksScreen';
 import DutyHoursScreen from '../screens/DutyHoursScreen';
 import ProgramMembersScreen from '../screens/ProgramMembersScreen';
+import ManageRolesScreen from '../screens/ManageRolesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -160,6 +161,11 @@ function ScheduleStack() {
         name="DutyHours"
         component={DutyHoursScreen}
         options={{ title: 'Duty Hours' }}
+      />
+      <Stack.Screen
+        name="ManageRoles"
+        component={ManageRolesScreen}
+        options={{ title: 'Manage Roles' }}
       />
     </Stack.Navigator>
   );

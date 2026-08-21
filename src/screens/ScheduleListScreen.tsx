@@ -137,18 +137,26 @@ export default function ScheduleListScreen({ navigation }: any) {
     ];
 
     return (
-      <View style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, selectedTab === tab.key && styles.activeTab]}
-            onPress={() => setSelectedTab(tab.key)}
-          >
-            <Text style={[styles.tabText, selectedTab === tab.key && styles.activeTabText]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View>
+        <View style={styles.tabBar}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, selectedTab === tab.key && styles.activeTab]}
+              onPress={() => setSelectedTab(tab.key)}
+            >
+              <Text style={[styles.tabText, selectedTab === tab.key && styles.activeTabText]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <TouchableOpacity
+          style={styles.manageRolesButton}
+          onPress={() => navigation.navigate('ManageRoles')}
+        >
+          <Text style={styles.manageRolesButtonText}>⚙️ Manage Roles</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -225,6 +233,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeTabText: {
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  manageRolesButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 8,
+    marginVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  manageRolesButtonText: {
+    fontSize: 14,
     color: '#3498db',
     fontWeight: '600',
   },
