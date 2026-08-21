@@ -169,17 +169,25 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       {/* Header with actions */}
-      {isChief && week.status === 'draft' && (
+      {isChief && (
         <View style={styles.actionBar}>
           <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditSchedule', { weekId })}>
             <Text style={styles.editButtonText}>Edit Schedule</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.publishButton} onPress={handlePublish}>
-            <Text style={styles.publishButtonText}>Publish</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
+          {week.status === 'draft' ? (
+            <>
+              <TouchableOpacity style={styles.publishButton} onPress={handlePublish}>
+                <Text style={styles.publishButtonText}>Publish</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>📢 Published</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -310,6 +318,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  statusBadge: {
+    flex: 1,
+    backgroundColor: '#27ae60',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadgeText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
