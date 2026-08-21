@@ -34,6 +34,9 @@ import ManageRolesScreen from '../screens/ManageRolesScreen';
 import SwapRequestsScreen from '../screens/SwapRequestsScreen';
 import CreateSwapRequestScreen from '../screens/CreateSwapRequestScreen';
 
+// Components
+import FloatingFeedbackButton from '../components/FloatingFeedbackButton';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -190,83 +193,86 @@ function MainTabs() {
     isApproved && (profile?.role === 'admin' || profile?.role === 'chief_resident' || profile?.role === 'program_coordinator');
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#3498db',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        tabBarActiveTintColor: '#3498db',
-        tabBarInactiveTintColor: '#7f8c8d',
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={HomeStack}
-        options={{
-          title: 'Drift',
-          tabBarLabel: 'Home',
-          headerShown: false,
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#3498db',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          tabBarActiveTintColor: '#3498db',
+          tabBarInactiveTintColor: '#7f8c8d',
         }}
-      />
-      <Tab.Screen
-        name="Events"
-        component={EventsStack}
-        options={{
-          title: 'Events',
-          tabBarLabel: 'Events',
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Schedule"
-        component={ScheduleStack}
-        options={{
-          title: 'Schedule',
-          tabBarLabel: 'Schedule',
-          headerShown: false,
-        }}
-      />
-      <Tab.Screen
-        name="Swaps"
-        component={SwapRequestsScreen}
-        options={{
-          title: 'Shift Swaps',
-          tabBarLabel: 'Swaps',
-        }}
-      />
-      {canManageApprovals && (
+      >
         <Tab.Screen
-          name="Members"
-          component={ProgramMembersScreen}
+          name="Home"
+          component={HomeStack}
           options={{
-            title: 'Program Members',
-            tabBarLabel: 'Members',
+            title: 'Drift',
+            tabBarLabel: 'Home',
+            headerShown: false,
           }}
         />
-      )}
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          title: 'Profile',
-          tabBarLabel: 'Profile',
-        }}
-      />
-      {canManageApprovals && (
         <Tab.Screen
-          name="Approvals"
-          component={ApprovalsScreen}
+          name="Events"
+          component={EventsStack}
           options={{
-            title: 'Manage Approvals',
-            tabBarLabel: 'Approvals',
+            title: 'Events',
+            tabBarLabel: 'Events',
+            headerShown: false,
           }}
         />
-      )}
-    </Tab.Navigator>
+        <Tab.Screen
+          name="Schedule"
+          component={ScheduleStack}
+          options={{
+            title: 'Schedule',
+            tabBarLabel: 'Schedule',
+            headerShown: false,
+          }}
+        />
+        <Tab.Screen
+          name="Swaps"
+          component={SwapRequestsScreen}
+          options={{
+            title: 'Shift Swaps',
+            tabBarLabel: 'Swaps',
+          }}
+        />
+        {canManageApprovals && (
+          <Tab.Screen
+            name="Members"
+            component={ProgramMembersScreen}
+            options={{
+              title: 'Program Members',
+              tabBarLabel: 'Members',
+            }}
+          />
+        )}
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            title: 'Profile',
+            tabBarLabel: 'Profile',
+          }}
+        />
+        {canManageApprovals && (
+          <Tab.Screen
+            name="Approvals"
+            component={ApprovalsScreen}
+            options={{
+              title: 'Manage Approvals',
+              tabBarLabel: 'Approvals',
+            }}
+          />
+        )}
+      </Tab.Navigator>
+      <FloatingFeedbackButton />
+    </View>
   );
 }
 

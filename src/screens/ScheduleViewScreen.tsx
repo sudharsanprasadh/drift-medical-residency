@@ -395,46 +395,42 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Start Date *</Text>
-              {Platform.OS === 'web' ? (
+              <View style={styles.dateInputRow}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, styles.dateInput]}
                   placeholder="YYYY-MM-DD"
                   value={duplicateStartDate}
                   onChangeText={setDuplicateStartDate}
                   editable={!duplicating}
                 />
-              ) : (
-                <>
+                {Platform.OS !== 'web' && (
                   <TouchableOpacity
-                    style={styles.dateButton}
+                    style={styles.calendarButton}
                     onPress={() => setShowDatePicker(true)}
                     disabled={duplicating}
                   >
-                    <Text style={duplicateStartDate ? styles.dateText : styles.datePlaceholder}>
-                      {duplicateStartDate || 'Select start date'}
-                    </Text>
-                    <Text style={styles.calendarIcon}>📅</Text>
+                    <Text style={styles.calendarIconButton}>📅</Text>
                   </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={parseDate(duplicateStartDate)}
-                      mode="date"
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={handleDateChange}
-                    />
-                  )}
-                  {Platform.OS === 'ios' && showDatePicker && (
-                    <TouchableOpacity
-                      style={styles.doneButton}
-                      onPress={() => setShowDatePicker(false)}
-                    >
-                      <Text style={styles.doneButtonText}>Done</Text>
-                    </TouchableOpacity>
-                  )}
-                </>
+                )}
+              </View>
+              {Platform.OS !== 'web' && showDatePicker && (
+                <DateTimePicker
+                  value={parseDate(duplicateStartDate)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                />
+              )}
+              {Platform.OS === 'ios' && showDatePicker && (
+                <TouchableOpacity
+                  style={styles.doneButton}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
               )}
               <Text style={styles.helperText}>
-                Copies will be created starting from this date
+                Type date or tap 📅 to pick from calendar
               </Text>
             </View>
 
@@ -662,6 +658,25 @@ const styles = StyleSheet.create({
     color: '#95a5a6',
   },
   calendarIcon: {
+    fontSize: 20,
+  },
+  dateInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  dateInput: {
+    flex: 1,
+  },
+  calendarButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarIconButton: {
     fontSize: 20,
   },
   doneButton: {

@@ -316,3 +316,16 @@ export interface ComplianceSummary {
   compliance_rate: number;
   common_violations: string[];
 }
+
+export type FeedbackStatus = 'new' | 'reviewed' | 'resolved' | 'dismissed';
+
+export interface Feedback {
+  id: string;
+  user_id: string;
+  program_id: string | null;
+  title: string;
+  description: string;
+  name: string | null;
+  status: FeedbackStatus;
+  created_at: string;
+}
