@@ -66,7 +66,13 @@ export default function EditScheduleScreen({ route, navigation }: any) {
 
       setWeek(weekData);
       setAssignments(assignmentsData);
-      setResidents(residentsData.filter((r) => r.role === 'resident' || r.role === 'chief_resident'));
+      setResidents(
+        residentsData.filter(
+          (r) =>
+            (r.role === 'resident' || r.role === 'chief_resident') &&
+            r.pgy !== 'ALUMNI'
+        )
+      );
     } catch (error: any) {
       console.error('Error loading data:', error);
       showAlert('Error', 'Failed to load schedule data');

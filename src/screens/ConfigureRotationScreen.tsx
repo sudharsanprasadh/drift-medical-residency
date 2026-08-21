@@ -57,7 +57,13 @@ export default function ConfigureRotationScreen({ route, navigation }: any) {
       ]);
 
       setConstraints(constraintsData);
-      setResidents(residentsData.filter((r) => r.role === 'resident' || r.role === 'chief_resident'));
+      setResidents(
+        residentsData.filter(
+          (r) =>
+            (r.role === 'resident' || r.role === 'chief_resident') &&
+            r.pgy !== 'ALUMNI'
+        )
+      );
       setRoles(rolesData);
     } catch (error: any) {
       console.error('Error loading data:', error);

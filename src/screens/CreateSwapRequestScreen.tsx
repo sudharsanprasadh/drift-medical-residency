@@ -60,6 +60,7 @@ export default function CreateSwapRequestScreen({ navigation }: any) {
         (r) =>
           r.id !== profile.id &&
           (r.role === 'resident' || r.role === 'chief_resident') &&
+          r.pgy !== 'ALUMNI' &&
           r.is_approved
       );
       setTargetResidents(otherResidents);
