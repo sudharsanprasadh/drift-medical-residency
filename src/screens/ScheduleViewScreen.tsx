@@ -8,17 +8,25 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Modal,
+  TextInput,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../services/AuthContext';
-import { getScheduleWeekById, getScheduleWeekGrid, publishScheduleWeek, deleteScheduleWeek } from '../services/api';
+import { getScheduleWeekById, getScheduleWeekGrid, publishScheduleWeek, deleteScheduleWeek, duplicateScheduleWeek } from '../services/api';
 import { ScheduleWeek, ScheduleGridCell } from '../types';
 
 export default function ScheduleViewScreen({ route, navigation }: any) {
   const { weekId } = route.params;
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [week, setWeek] = useState<ScheduleWeek | null>(null);
   const [gridData, setGridData] = useState<ScheduleGridCell[]>([]);
   const [loading, setLoading] = useState(true);
+  const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
+  const [numberOfWeeks, setNumberOfWeeks] = useState('4');
+  const [duplicateStartDate, setDuplicateStartDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   const isChief = profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
@@ -99,6 +107,68 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
       showAlert('Success', 'Schedule deleted successfully', () => navigation.goBack());
     } catch (error: any) {
       showAlert('Error', 'Failed to delete schedule');
+    }
+  };
+
+  const handleDuplicate = () => {
+    if (!week) return;
+    // Set default start date to the week after the current one
+    const nextWeekStart = new Date(week.end_date);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 1);
+    setDuplicateStartDate(formatDateToString(nextWeekStart));
+    setDuplicateModalVisible(true);
+  };
+
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseDate = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const handleDateChange = (_event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDuplicateStartDate(formatDateToString(selectedDate));
+    }
+  };
+
+  const performDuplicate = async () => {
+    const weeks = parseInt(numberOfWeeks);
+    if (!weeks || weeks < 1 || weeks > 52) {
+      showAlert('Error', 'Please enter a valid number of weeks (1-52)');
+      return;
+    }
+
+    if (!duplicateStartDate) {
+      showAlert('Error', 'Please select a start date');
+      return;
+    }
+
+    if (!user?.id) return;
+
+    setDuplicating(true);
+    try {
+      const startDate = new Date(duplicateStartDate);
+      const createdWeeks = await duplicateScheduleWeek(weekId, weeks, startDate, user.id);
+
+      setDuplicateModalVisible(false);
+      showAlert('Success', `Successfully created ${createdWeeks.length} schedule copies!`, () => {
+        navigation.goBack();
+      });
+    } catch (error: any) {
+      console.error('Error duplicating schedule:', error);
+      showAlert('Error', error.message || 'Failed to duplicate schedule');
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -197,6 +267,13 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
         </View>
       )}
 
+      {/* Duplicate Button */}
+      {isChief && (
+        <TouchableOpacity style={styles.duplicateButton} onPress={handleDuplicate}>
+          <Text style={styles.duplicateButtonText}>📋 Duplicate to Following Weeks</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Schedule info */}
       <View style={styles.infoBar}>
         <Text style={styles.infoText}>
@@ -260,6 +337,119 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
           </ScrollView>
         </View>
       </ScrollView>
+
+      {/* Duplicate Modal */}
+      <Modal visible={duplicateModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Duplicate Schedule</Text>
+            <Text style={styles.modalSubtitle}>
+              Create copies of this schedule for consecutive weeks
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Number of Weeks *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 4"
+                keyboardType="numeric"
+                value={numberOfWeeks}
+                onChangeText={setNumberOfWeeks}
+                editable={!duplicating}
+              />
+              <View style={styles.presetButtons}>
+                {['1', '4', '8', '12'].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.presetButton,
+                      numberOfWeeks === preset && styles.presetButtonActive,
+                    ]}
+                    onPress={() => setNumberOfWeeks(preset)}
+                    disabled={duplicating}
+                  >
+                    <Text
+                      style={[
+                        styles.presetButtonText,
+                        numberOfWeeks === preset && styles.presetButtonTextActive,
+                      ]}
+                    >
+                      {preset} {preset === '1' ? 'week' : 'weeks'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Start Date *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+                disabled={duplicating}
+              >
+                <Text style={duplicateStartDate ? styles.dateText : styles.datePlaceholder}>
+                  {duplicateStartDate || 'Select start date'}
+                </Text>
+                <Text style={styles.calendarIcon}>📅</Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={parseDate(duplicateStartDate)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                />
+              )}
+              {Platform.OS === 'ios' && showDatePicker && (
+                <TouchableOpacity
+                  style={styles.doneButton}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              )}
+              <Text style={styles.helperText}>
+                Copies will be created starting from this date
+              </Text>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoTitle}>What will be copied:</Text>
+              <Text style={styles.infoText}>
+                • All role assignments{'\n'}
+                • All resident assignments (primary & backup){'\n'}
+                • Shift periods (day/night){'\n'}
+                • Notes (with "Duplicated from" prefix)
+              </Text>
+              <Text style={[styles.infoText, { marginTop: 8 }]}>
+                All copies will be created as <Text style={{ fontWeight: 'bold' }}>drafts</Text>.
+              </Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setDuplicateModalVisible(false)}
+                disabled={duplicating}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton, duplicating && styles.saveButtonDisabled]}
+                onPress={performDuplicate}
+                disabled={duplicating}
+              >
+                {duplicating ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Create Copies</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -340,6 +530,171 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  duplicateButton: {
+    backgroundColor: '#fff',
+    marginHorizontal: 12,
+    marginVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3498db',
+    alignItems: 'center',
+  },
+  duplicateButtonText: {
+    color: '#3498db',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#95a5a6',
+    marginTop: 4,
+  },
+  presetButtons: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
+  presetButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#ecf0f1',
+    alignItems: 'center',
+  },
+  presetButtonActive: {
+    backgroundColor: '#3498db',
+  },
+  presetButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#2c3e50',
+  },
+  presetButtonTextActive: {
+    color: '#fff',
+  },
+  dateButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#2c3e50',
+  },
+  datePlaceholder: {
+    fontSize: 16,
+    color: '#95a5a6',
+  },
+  calendarIcon: {
+    fontSize: 20,
+  },
+  doneButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  infoBox: {
+    backgroundColor: '#e8f4f8',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3498db',
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#ecf0f1',
+  },
+  cancelButtonText: {
+    color: '#2c3e50',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: '#27ae60',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   infoBar: {
     padding: 12,

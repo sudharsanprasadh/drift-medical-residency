@@ -307,6 +307,121 @@ export const publishScheduleWeek = async (weekId: string): Promise<ScheduleWeek>
   return updateScheduleWeek(weekId, { status: 'published' });
 };
 
+export const duplicateScheduleWeek = async (
+  weekId: string,
+  numberOfWeeks: number,
+  startDate: Date,
+  createdBy: string
+): Promise<ScheduleWeek[]> => {
+  // Get the original week with all assignments
+  const { data: originalWeek, error: weekError } = await supabase
+    .from('schedule_weeks')
+    .select('*')
+    .eq('id', weekId)
+    .single();
+
+  if (weekError) throw weekError;
+
+  // Get all assignments for the original week
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from('schedule_assignments')
+    .select(`
+      *,
+      residents:schedule_assignment_residents(*)
+    `)
+    .eq('schedule_week_id', weekId);
+
+  if (assignmentsError) throw assignmentsError;
+
+  const createdWeeks: ScheduleWeek[] = [];
+
+  // Calculate week duration
+  const originalStart = new Date(originalWeek.start_date);
+  const originalEnd = new Date(originalWeek.end_date);
+  const weekDuration = Math.ceil((originalEnd.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Create duplicates for each week
+  for (let i = 0; i < numberOfWeeks; i++) {
+    const newStartDate = new Date(startDate);
+    newStartDate.setDate(startDate.getDate() + (i * 7)); // Weekly increments
+
+    const newEndDate = new Date(newStartDate);
+    newEndDate.setDate(newStartDate.getDate() + weekDuration);
+
+    // Format dates
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    // Generate week name
+    const weekName = `Week of ${newStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${newEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+    // Create new week
+    const { data: newWeek, error: createError } = await supabase
+      .from('schedule_weeks')
+      .insert({
+        program_id: originalWeek.program_id,
+        week_name: weekName,
+        start_date: formatDate(newStartDate),
+        end_date: formatDate(newEndDate),
+        notes: originalWeek.notes ? `Duplicated from: ${originalWeek.week_name}` : null,
+        status: 'draft',
+        created_by: createdBy,
+      })
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    // Duplicate assignments
+    if (assignments && assignments.length > 0) {
+      for (const assignment of assignments) {
+        const originalDate = new Date(assignment.shift_date);
+        const dayOffset = Math.ceil((originalDate.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
+
+        const newShiftDate = new Date(newStartDate);
+        newShiftDate.setDate(newStartDate.getDate() + dayOffset);
+
+        // Create new assignment
+        const { data: newAssignment, error: assignError } = await supabase
+          .from('schedule_assignments')
+          .insert({
+            schedule_week_id: newWeek.id,
+            role_id: assignment.role_id,
+            shift_date: formatDate(newShiftDate),
+            shift_period: assignment.shift_period,
+          })
+          .select()
+          .single();
+
+        if (assignError) throw assignError;
+
+        // Duplicate resident assignments
+        if (assignment.residents && assignment.residents.length > 0) {
+          const residentInserts = assignment.residents.map((resident: any) => ({
+            assignment_id: newAssignment.id,
+            resident_id: resident.resident_id,
+            is_backup: resident.is_backup,
+          }));
+
+          const { error: residentError } = await supabase
+            .from('schedule_assignment_residents')
+            .insert(residentInserts);
+
+          if (residentError) throw residentError;
+        }
+      }
+    }
+
+    createdWeeks.push(newWeek);
+  }
+
+  return createdWeeks;
+};
+
 // ============================================
 // Schedule Roles
 // ============================================
