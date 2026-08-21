@@ -180,20 +180,20 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     return `${dayName}\n${month}/${dayNum}`;
   };
 
-  const renderResidentList = (residents: string[], backupResidents: string[]) => {
+  const renderResidentList = (residents: string[], backupResidents: string[], isNight: boolean) => {
     if (!residents.length && !backupResidents.length) {
-      return <Text style={styles.emptyCell}>—</Text>;
+      return <Text style={[styles.emptyCell, isNight && styles.emptyCellNight]}>—</Text>;
     }
 
     return (
       <View>
         {residents.map((name, idx) => (
-          <Text key={`resident-${idx}`} style={styles.residentName}>
+          <Text key={`resident-${idx}`} style={[styles.residentName, isNight && styles.residentNameNight]}>
             {name}
           </Text>
         ))}
         {backupResidents.map((name, idx) => (
-          <Text key={`backup-${idx}`} style={styles.backupName}>
+          <Text key={`backup-${idx}`} style={[styles.backupName, isNight && styles.backupNameNight]}>
             {name} (Backup)
           </Text>
         ))}
@@ -204,10 +204,11 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
   const renderGridCell = (cell: ScheduleGridCell, shiftType: 'day' | 'night') => {
     const residents = shiftType === 'day' ? cell.day_residents : cell.night_residents;
     const backupResidents = shiftType === 'day' ? cell.day_backup_residents : cell.night_backup_residents;
+    const isNight = shiftType === 'night';
 
     return (
-      <View style={[styles.gridCell, shiftType === 'night' && styles.nightCell]}>
-        {renderResidentList(residents, backupResidents)}
+      <View style={[styles.gridCell, isNight && styles.nightCell]}>
+        {renderResidentList(residents, backupResidents, isNight)}
       </View>
     );
   };
@@ -786,15 +787,24 @@ const styles = StyleSheet.create({
     color: '#bdc3c7',
     textAlign: 'center',
   },
+  emptyCellNight: {
+    color: '#ffffff',
+  },
   residentName: {
     fontSize: 11,
     color: '#2c3e50',
     marginBottom: 2,
+  },
+  residentNameNight: {
+    color: '#ffffff',
   },
   backupName: {
     fontSize: 10,
     color: '#7f8c8d',
     fontStyle: 'italic',
     marginBottom: 2,
+  },
+  backupNameNight: {
+    color: '#e0e0e0',
   },
 });
