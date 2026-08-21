@@ -342,8 +342,8 @@ export const duplicateScheduleWeek = async (
 
   // Create duplicates for each week
   for (let i = 0; i < numberOfWeeks; i++) {
-    const newStartDate = new Date(startDate);
-    newStartDate.setDate(startDate.getDate() + (i * 7)); // Weekly increments
+    // Add i weeks (7 days each) to the start date
+    const newStartDate = new Date(startDate.getTime() + (i * 7 * 24 * 60 * 60 * 1000));
 
     const newEndDate = new Date(newStartDate);
     newEndDate.setDate(newStartDate.getDate() + weekDuration);
