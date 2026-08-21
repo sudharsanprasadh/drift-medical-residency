@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../services/AuthContext';
 import { createScheduleWeek } from '../services/api';
 
@@ -20,6 +21,8 @@ export default function CreateWeekScreen({ navigation }: any) {
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const showAlert = (title: string, message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
@@ -106,6 +109,13 @@ export default function CreateWeekScreen({ navigation }: any) {
     }
   };
 
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const setDefaultDates = () => {
     const today = new Date();
     const nextMonday = new Date(today);
@@ -114,15 +124,32 @@ export default function CreateWeekScreen({ navigation }: any) {
     const nextSunday = new Date(nextMonday);
     nextSunday.setDate(nextMonday.getDate() + 6);
 
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
+    setStartDate(formatDateToString(nextMonday));
+    setEndDate(formatDateToString(nextSunday));
+  };
 
-    setStartDate(formatDate(nextMonday));
-    setEndDate(formatDate(nextSunday));
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartPicker(false);
+    }
+    if (selectedDate) {
+      setStartDate(formatDateToString(selectedDate));
+    }
+  };
+
+  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndPicker(false);
+    }
+    if (selectedDate) {
+      setEndDate(formatDateToString(selectedDate));
+    }
+  };
+
+  const parseDate = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
   };
 
   return (
@@ -152,26 +179,65 @@ export default function CreateWeekScreen({ navigation }: any) {
           {/* Start Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Start Date *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD (e.g., 2024-07-01)"
-              value={startDate}
-              onChangeText={setStartDate}
-              editable={!loading}
-            />
-            <Text style={styles.helperText}>Format: YYYY-MM-DD</Text>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowStartPicker(true)}
+              disabled={loading}
+            >
+              <Text style={startDate ? styles.dateText : styles.datePlaceholder}>
+                {startDate || 'Select start date'}
+              </Text>
+              <Text style={styles.calendarIcon}>📅</Text>
+            </TouchableOpacity>
+            {showStartPicker && (
+              <DateTimePicker
+                value={parseDate(startDate)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleStartDateChange}
+                maximumDate={endDate ? parseDate(endDate) : undefined}
+              />
+            )}
+            {Platform.OS === 'ios' && showStartPicker && (
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowStartPicker(false)}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* End Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>End Date *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD (e.g., 2024-07-07)"
-              value={endDate}
-              onChangeText={setEndDate}
-              editable={!loading}
-            />
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowEndPicker(true)}
+              disabled={loading}
+            >
+              <Text style={endDate ? styles.dateText : styles.datePlaceholder}>
+                {endDate || 'Select end date'}
+              </Text>
+              <Text style={styles.calendarIcon}>📅</Text>
+            </TouchableOpacity>
+            {showEndPicker && (
+              <DateTimePicker
+                value={parseDate(endDate)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleEndDateChange}
+                minimumDate={startDate ? parseDate(startDate) : undefined}
+              />
+            )}
+            {Platform.OS === 'ios' && showEndPicker && (
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowEndPicker(false)}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={setDefaultDates} disabled={loading}>
               <Text style={styles.helperLink}>Set to next Mon-Sun</Text>
             </TouchableOpacity>
@@ -288,6 +354,40 @@ const styles = StyleSheet.create({
     color: '#3498db',
     marginTop: 4,
     textDecorationLine: 'underline',
+  },
+  dateButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#2c3e50',
+  },
+  datePlaceholder: {
+    fontSize: 16,
+    color: '#95a5a6',
+  },
+  calendarIcon: {
+    fontSize: 20,
+  },
+  doneButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   infoBox: {
     backgroundColor: '#e8f4f8',
