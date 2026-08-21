@@ -72,14 +72,19 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
   };
 
   const handleDelete = () => {
+    const isPublished = week.status === 'published';
+    const message = isPublished
+      ? 'This schedule is PUBLISHED and visible to all residents. Deleting it will remove all assignments and duty hour tracking. Are you sure?'
+      : 'Are you sure you want to delete this schedule? This action cannot be undone.';
+
     if (Platform.OS === 'web') {
-      if (confirm('Are you sure you want to delete this schedule? This action cannot be undone.')) {
+      if (confirm(message)) {
         performDelete();
       }
     } else {
       Alert.alert(
         'Delete Schedule',
-        'Are you sure you want to delete this schedule? This action cannot be undone.',
+        message,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Delete', style: 'destructive', onPress: performDelete },
@@ -174,19 +179,20 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
           <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditSchedule', { weekId })}>
             <Text style={styles.editButtonText}>Edit Schedule</Text>
           </TouchableOpacity>
-          {week.status === 'draft' ? (
-            <>
-              <TouchableOpacity style={styles.publishButton} onPress={handlePublish}>
-                <Text style={styles.publishButtonText}>Publish</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
+          {week.status === 'draft' && (
+            <TouchableOpacity style={styles.publishButton} onPress={handlePublish}>
+              <Text style={styles.publishButtonText}>Publish</Text>
+            </TouchableOpacity>
+          )}
+          {week.status === 'published' && (
             <View style={styles.statusBadge}>
               <Text style={styles.statusBadgeText}>📢 Published</Text>
             </View>
+          )}
+          {week.status !== 'archived' && (
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
