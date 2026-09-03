@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  PanResponder,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import { supabase } from '../services/supabase';
@@ -22,6 +25,51 @@ export default function FloatingFeedbackButton() {
   const [description, setDescription] = useState('');
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const pan = useRef(new Animated.ValueXY()).current;
+  const lastOffset = useRef({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+
+  const BUTTON_SIZE = 56;
+  const MARGIN = 10;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 5 || Math.abs(gesture.dy) > 5,
+      onPanResponderGrant: () => {
+        isDragging.current = false;
+      },
+      onPanResponderMove: (_, gesture) => {
+        isDragging.current = true;
+        const { width, height } = Dimensions.get('window');
+        const newX = Math.max(
+          -(width - BUTTON_SIZE - MARGIN * 2),
+          Math.min(0, lastOffset.current.x + gesture.dx)
+        );
+        const newY = Math.max(
+          -(height - BUTTON_SIZE - MARGIN * 2 - 100),
+          Math.min(0, lastOffset.current.y + gesture.dy)
+        );
+        pan.setValue({ x: newX, y: newY });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const { width } = Dimensions.get('window');
+        const currentX = lastOffset.current.x + gesture.dx;
+        const centerX = -(width - BUTTON_SIZE - MARGIN * 2) / 2;
+        const snapX = currentX < centerX ? -(width - BUTTON_SIZE - MARGIN * 2) : 0;
+        const newY = lastOffset.current.y + gesture.dy;
+
+        lastOffset.current = { x: snapX, y: newY };
+        Animated.spring(pan, {
+          toValue: { x: snapX, y: newY },
+          useNativeDriver: false,
+          friction: 7,
+        }).start();
+      },
+    })
+  ).current;
 
   // Don't show if user not logged in
   if (!user || !profile) {
@@ -83,14 +131,24 @@ export default function FloatingFeedbackButton() {
 
   return (
     <>
-      {/* Floating Button */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => setModalVisible(true)}
-        activeOpacity={0.8}
+      {/* Floating Draggable Button */}
+      <Animated.View
+        style={[
+          styles.floatingButton,
+          { transform: pan.getTranslateTransform() },
+        ]}
+        {...panResponder.panHandlers}
       >
-        <Text style={styles.buttonIcon}>💬</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            if (!isDragging.current) setModalVisible(true);
+          }}
+          activeOpacity={0.8}
+          style={styles.buttonTouchable}
+        >
+          <Text style={styles.buttonIcon}>💬</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Feedback Modal */}
       <Modal
@@ -212,6 +270,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 1000,
+  },
+  buttonTouchable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonIcon: {
     fontSize: 24,
