@@ -5,12 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
-import { getResidentTracking, getProgramTracking, getComplianceSummary } from '../services/api';
-import { ScheduleRotationTracking, ComplianceSummary } from '../types';
+import { getResidentTracking, getProgramTracking, getComplianceSummary, getResidentRoleHours } from '../services/api';
+import { ScheduleRotationTracking, ComplianceSummary, ResidentRoleHours } from '../types';
 
 export default function DutyHoursScreen() {
   const { profile } = useAuth();
@@ -20,6 +21,11 @@ export default function DutyHoursScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'personal' | 'program'>('personal');
+  const [myRoleHours, setMyRoleHours] = useState<ResidentRoleHours[]>([]);
+  const [residentFilter, setResidentFilter] = useState('');
+  const [expandedResident, setExpandedResident] = useState<string | null>(null);
+  const [expandedRoleHours, setExpandedRoleHours] = useState<ResidentRoleHours[]>([]);
+  const [loadingRoleHours, setLoadingRoleHours] = useState(false);
 
   const isChief =
     profile?.role === 'chief_resident' ||
@@ -38,8 +44,12 @@ export default function DutyHoursScreen() {
       setLoading(true);
 
       if (viewMode === 'personal') {
-        const trackingData = await getResidentTracking(profile.id);
+        const [trackingData, roleHoursData] = await Promise.all([
+          getResidentTracking(profile.id),
+          getResidentRoleHours(profile.id),
+        ]);
         setMyTracking(trackingData);
+        setMyRoleHours(roleHoursData);
       } else {
         const [programTrackingData, summaryData] = await Promise.all([
           getProgramTracking(profile.program_id),
@@ -164,6 +174,25 @@ export default function DutyHoursScreen() {
           </View>
         </View>
 
+        {/* Hours by Role */}
+        {myRoleHours.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Hours by Role</Text>
+            {myRoleHours.map((rh) => (
+              <View key={rh.role_id} style={styles.roleHoursCard}>
+                <View style={styles.roleHoursHeader}>
+                  <Text style={styles.roleHoursName}>{rh.role_name}</Text>
+                  <Text style={styles.roleHoursTotal}>{Number(rh.total_hours).toFixed(1)}h</Text>
+                </View>
+                <View style={styles.roleHoursStats}>
+                  <Text style={styles.roleHoursStat}>{rh.day_shifts} day shifts ({Number(rh.day_shift_hours).toFixed(1)}h)</Text>
+                  <Text style={styles.roleHoursStat}>{rh.night_shifts} night shifts ({Number(rh.night_shift_hours).toFixed(1)}h)</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Weekly History */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Weekly History</Text>
@@ -268,37 +297,97 @@ export default function DutyHoursScreen() {
           </View>
         )}
 
-        {/* Recent Program Tracking */}
+        {/* Resident Hours with Filter */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Resident Hours</Text>
-          {programTracking.slice(0, 10).map((tracking) => (
-            <View key={tracking.id} style={styles.residentCard}>
-              <View style={styles.residentHeader}>
-                <Text style={styles.residentName}>
-                  {tracking.resident?.first_name} {tracking.resident?.last_name}
-                </Text>
-                <View
-                  style={[
-                    styles.residentBadge,
-                    { backgroundColor: tracking.is_compliant ? '#27ae60' : '#e74c3c' },
-                  ]}
-                >
-                  <Text style={styles.residentBadgeText}>
-                    {tracking.is_compliant ? '✓' : '✕'}
+          <Text style={styles.sectionTitle}>Resident Hours</Text>
+          <TextInput
+            style={styles.filterInput}
+            placeholder="Filter by name..."
+            value={residentFilter}
+            onChangeText={setResidentFilter}
+          />
+          {programTracking
+            .filter((t) => {
+              if (!residentFilter.trim()) return true;
+              const name = `${t.resident?.first_name} ${t.resident?.last_name}`.toLowerCase();
+              return name.includes(residentFilter.toLowerCase());
+            })
+            .map((tracking) => (
+            <View key={tracking.id}>
+              <TouchableOpacity
+                style={styles.residentCard}
+                onPress={async () => {
+                  if (expandedResident === tracking.resident_id) {
+                    setExpandedResident(null);
+                    setExpandedRoleHours([]);
+                    return;
+                  }
+                  setExpandedResident(tracking.resident_id);
+                  setLoadingRoleHours(true);
+                  try {
+                    const hours = await getResidentRoleHours(tracking.resident_id);
+                    setExpandedRoleHours(hours);
+                  } catch (e) {
+                    console.error('Error loading role hours:', e);
+                    setExpandedRoleHours([]);
+                  } finally {
+                    setLoadingRoleHours(false);
+                  }
+                }}
+              >
+                <View style={styles.residentHeader}>
+                  <Text style={styles.residentName}>
+                    {tracking.resident?.first_name} {tracking.resident?.last_name}
+                    {tracking.resident?.pgy ? ` (${tracking.resident.pgy})` : ''}
+                  </Text>
+                  <View
+                    style={[
+                      styles.residentBadge,
+                      { backgroundColor: tracking.is_compliant ? '#27ae60' : '#e74c3c' },
+                    ]}
+                  >
+                    <Text style={styles.residentBadgeText}>
+                      {tracking.is_compliant ? '✓' : '✕'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.residentStats}>
+                  <Text style={styles.residentStat}>
+                    {tracking.total_hours.toFixed(1)} hrs
+                  </Text>
+                  <Text style={styles.residentStat}>
+                    {tracking.night_shifts} nights
+                  </Text>
+                  <Text style={styles.residentStat}>
+                    {tracking.days_off_count} days off
                   </Text>
                 </View>
-              </View>
-              <View style={styles.residentStats}>
-                <Text style={styles.residentStat}>
-                  {tracking.total_hours.toFixed(1)} hrs
+                <Text style={styles.expandHint}>
+                  {expandedResident === tracking.resident_id ? '▲ Hide role breakdown' : '▼ Tap to see role breakdown'}
                 </Text>
-                <Text style={styles.residentStat}>
-                  {tracking.night_shifts} nights
-                </Text>
-                <Text style={styles.residentStat}>
-                  {tracking.days_off_count} days off
-                </Text>
-              </View>
+              </TouchableOpacity>
+
+              {expandedResident === tracking.resident_id && (
+                <View style={styles.roleBreakdown}>
+                  {loadingRoleHours ? (
+                    <ActivityIndicator size="small" color="#3498db" style={{ padding: 12 }} />
+                  ) : expandedRoleHours.length === 0 ? (
+                    <Text style={styles.noRoleData}>No role breakdown available</Text>
+                  ) : (
+                    expandedRoleHours.map((rh) => (
+                      <View key={rh.role_id} style={styles.roleBreakdownRow}>
+                        <View style={styles.roleBreakdownInfo}>
+                          <Text style={styles.roleBreakdownName}>{rh.role_name}</Text>
+                          <Text style={styles.roleBreakdownDetail}>
+                            {rh.day_shifts}D / {rh.night_shifts}N ({rh.total_shifts} total)
+                          </Text>
+                        </View>
+                        <Text style={styles.roleBreakdownHours}>{Number(rh.total_hours).toFixed(1)}h</Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
             </View>
           ))}
         </View>
@@ -593,5 +682,96 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7f8c8d',
     textAlign: 'center',
+  },
+  roleHoursCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  roleHoursHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  roleHoursName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  roleHoursTotal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3498db',
+  },
+  roleHoursStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  roleHoursStat: {
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  filterInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 12,
+  },
+  expandHint: {
+    fontSize: 11,
+    color: '#3498db',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  roleBreakdown: {
+    backgroundColor: '#f8f9fa',
+    marginHorizontal: 8,
+    marginBottom: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    overflow: 'hidden',
+  },
+  roleBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8e8e8',
+  },
+  roleBreakdownInfo: {
+    flex: 1,
+  },
+  roleBreakdownName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  roleBreakdownDetail: {
+    fontSize: 11,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  roleBreakdownHours: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#27ae60',
+  },
+  noRoleData: {
+    fontSize: 13,
+    color: '#95a5a6',
+    textAlign: 'center',
+    padding: 16,
   },
 });

@@ -10,14 +10,15 @@ import {
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
-import { getUserApprovalStatus, getProgramMembers } from '../services/api';
-import { ApprovalRequest, Profile } from '../types';
+import { getUserApprovalStatus, getProgramMembers, getResidentRoleHours } from '../services/api';
+import { ApprovalRequest, Profile, ResidentRoleHours } from '../types';
 import { formatRoleName, canManageProgram } from '../utils/roleHelpers';
 
 export default function ProfileScreen({ navigation }: any) {
   const { profile, refreshProfile, signOut } = useAuth();
   const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | null>(null);
   const [programMembers, setProgramMembers] = useState<Profile[]>([]);
+  const [roleHours, setRoleHours] = useState<ResidentRoleHours[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,12 +29,14 @@ export default function ProfileScreen({ navigation }: any) {
   const loadData = async () => {
     if (!profile) return;
     try {
-      const [request, members] = await Promise.all([
+      const [request, members, hours] = await Promise.all([
         getUserApprovalStatus(profile.id),
         profile.program_id ? getProgramMembers(profile.program_id) : Promise.resolve([]),
+        profile.is_approved ? getResidentRoleHours(profile.id) : Promise.resolve([]),
       ]);
       setApprovalRequest(request);
       setProgramMembers(members);
+      setRoleHours(hours);
 
       // Debug logging
       console.log('Program Members loaded:', {
@@ -169,6 +172,32 @@ export default function ProfileScreen({ navigation }: any) {
               </Text>
             </View>
           )}
+        </View>
+      )}
+
+      {/* Shifts Covered */}
+      {canAccessFullFeatures && roleHours.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Shifts Covered</Text>
+          {roleHours.map((rh) => (
+            <View key={rh.role_id} style={styles.shiftRow}>
+              <View style={styles.shiftRoleInfo}>
+                <Text style={styles.shiftRoleName}>{rh.role_name}</Text>
+                <Text style={styles.shiftDetail}>
+                  {rh.day_shifts} day, {rh.night_shifts} night
+                </Text>
+              </View>
+              <Text style={styles.shiftHours}>{Number(rh.total_hours).toFixed(1)}h</Text>
+            </View>
+          ))}
+          <View style={styles.shiftTotalRow}>
+            <Text style={styles.shiftTotalLabel}>
+              Total: {roleHours.reduce((s, r) => s + r.total_shifts, 0)} shifts
+            </Text>
+            <Text style={styles.shiftTotalHours}>
+              {roleHours.reduce((s, r) => s + Number(r.total_hours), 0).toFixed(1)}h
+            </Text>
+          </View>
         </View>
       )}
 
@@ -392,5 +421,48 @@ const styles = StyleSheet.create({
   memberEmail: {
     fontSize: 13,
     color: '#95a5a6',
+  },
+  shiftRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  shiftRoleInfo: {
+    flex: 1,
+  },
+  shiftRoleName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  shiftDetail: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  shiftHours: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3498db',
+  },
+  shiftTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 4,
+  },
+  shiftTotalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  shiftTotalHours: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#27ae60',
   },
 });
