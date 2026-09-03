@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../services/AuthContext';
 import { generateRotationWeeks } from '../services/rotationEngine';
 
@@ -18,6 +19,7 @@ export default function GenerateWeeksScreen({ route, navigation }: any) {
   const { user } = useAuth();
   const [weeksToGenerate, setWeeksToGenerate] = useState('52');
   const [startDate, setStartDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -30,15 +32,33 @@ export default function GenerateWeeksScreen({ route, navigation }: any) {
     }
   };
 
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseDate = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setStartDate(formatDateToString(selectedDate));
+    }
+  };
+
   const setNextMonday = () => {
     const today = new Date();
     const nextMonday = new Date(today);
     nextMonday.setDate(today.getDate() + ((1 + 7 - today.getDay()) % 7 || 7));
-
-    const year = nextMonday.getFullYear();
-    const month = String(nextMonday.getMonth() + 1).padStart(2, '0');
-    const day = String(nextMonday.getDate()).padStart(2, '0');
-    setStartDate(`${year}-${month}-${day}`);
+    setStartDate(formatDateToString(nextMonday));
   };
 
   const validateInputs = (): boolean => {
@@ -193,13 +213,40 @@ export default function GenerateWeeksScreen({ route, navigation }: any) {
           {/* Start Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Start Date *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              value={startDate}
-              onChangeText={setStartDate}
-              editable={!generating}
-            />
+            <View style={styles.dateInputRow}>
+              <TextInput
+                style={[styles.input, styles.dateInput]}
+                placeholder="YYYY-MM-DD"
+                value={startDate}
+                onChangeText={setStartDate}
+                editable={!generating}
+              />
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.calendarButton}
+                  onPress={() => setShowDatePicker(true)}
+                  disabled={generating}
+                >
+                  <Text style={styles.calendarIconButton}>📅</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {Platform.OS !== 'web' && showDatePicker && (
+              <DateTimePicker
+                value={parseDate(startDate)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+              />
+            )}
+            {Platform.OS === 'ios' && showDatePicker && (
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={setNextMonday} disabled={generating}>
               <Text style={styles.helperLink}>Set to next Monday</Text>
             </TouchableOpacity>
@@ -351,6 +398,38 @@ const styles = StyleSheet.create({
     color: '#3498db',
     marginTop: 4,
     textDecorationLine: 'underline',
+  },
+  dateInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  dateInput: {
+    flex: 1,
+  },
+  calendarButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarIconButton: {
+    fontSize: 20,
+  },
+  doneButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   presetButtons: {
     flexDirection: 'row',

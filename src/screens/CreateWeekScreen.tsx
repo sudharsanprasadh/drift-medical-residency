@@ -118,14 +118,14 @@ export default function CreateWeekScreen({ navigation }: any) {
 
   const setDefaultDates = () => {
     const today = new Date();
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + ((1 + 7 - today.getDay()) % 7 || 7));
+    const nextSunday = new Date(today);
+    nextSunday.setDate(today.getDate() + ((7 - today.getDay()) % 7 || 7));
 
-    const nextSunday = new Date(nextMonday);
-    nextSunday.setDate(nextMonday.getDate() + 6);
+    const nextSaturday = new Date(nextSunday);
+    nextSaturday.setDate(nextSunday.getDate() + 6);
 
-    setStartDate(formatDateToString(nextMonday));
-    setEndDate(formatDateToString(nextSunday));
+    setStartDate(formatDateToString(nextSunday));
+    setEndDate(formatDateToString(nextSaturday));
   };
 
   const handleStartDateChange = (event: any, selectedDate?: Date) => {
@@ -179,17 +179,25 @@ export default function CreateWeekScreen({ navigation }: any) {
           {/* Start Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Start Date *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowStartPicker(true)}
-              disabled={loading}
-            >
-              <Text style={startDate ? styles.dateText : styles.datePlaceholder}>
-                {startDate || 'Select start date'}
-              </Text>
-              <Text style={styles.calendarIcon}>📅</Text>
-            </TouchableOpacity>
-            {showStartPicker && (
+            <View style={styles.dateInputRow}>
+              <TextInput
+                style={[styles.input, styles.dateInput]}
+                placeholder="YYYY-MM-DD"
+                value={startDate}
+                onChangeText={setStartDate}
+                editable={!loading}
+              />
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.calendarButton}
+                  onPress={() => setShowStartPicker(true)}
+                  disabled={loading}
+                >
+                  <Text style={styles.calendarIconButton}>📅</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {Platform.OS !== 'web' && showStartPicker && (
               <DateTimePicker
                 value={parseDate(startDate)}
                 mode="date"
@@ -211,17 +219,25 @@ export default function CreateWeekScreen({ navigation }: any) {
           {/* End Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>End Date *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowEndPicker(true)}
-              disabled={loading}
-            >
-              <Text style={endDate ? styles.dateText : styles.datePlaceholder}>
-                {endDate || 'Select end date'}
-              </Text>
-              <Text style={styles.calendarIcon}>📅</Text>
-            </TouchableOpacity>
-            {showEndPicker && (
+            <View style={styles.dateInputRow}>
+              <TextInput
+                style={[styles.input, styles.dateInput]}
+                placeholder="YYYY-MM-DD"
+                value={endDate}
+                onChangeText={setEndDate}
+                editable={!loading}
+              />
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity
+                  style={styles.calendarButton}
+                  onPress={() => setShowEndPicker(true)}
+                  disabled={loading}
+                >
+                  <Text style={styles.calendarIconButton}>📅</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {Platform.OS !== 'web' && showEndPicker && (
               <DateTimePicker
                 value={parseDate(endDate)}
                 mode="date"
@@ -239,7 +255,7 @@ export default function CreateWeekScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={setDefaultDates} disabled={loading}>
-              <Text style={styles.helperLink}>Set to next Mon-Sun</Text>
+              <Text style={styles.helperLink}>Set to next Sun-Sat</Text>
             </TouchableOpacity>
           </View>
 
@@ -355,25 +371,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textDecorationLine: 'underline',
   },
-  dateButton: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+  dateInputRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
     alignItems: 'center',
   },
-  dateText: {
-    fontSize: 16,
-    color: '#2c3e50',
+  dateInput: {
+    flex: 1,
   },
-  datePlaceholder: {
-    fontSize: 16,
-    color: '#95a5a6',
+  calendarButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  calendarIcon: {
+  calendarIconButton: {
     fontSize: 20,
   },
   doneButton: {

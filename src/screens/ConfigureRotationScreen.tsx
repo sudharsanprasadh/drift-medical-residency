@@ -12,6 +12,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../services/AuthContext';
 import {
   getRotationConstraints,
@@ -39,6 +40,8 @@ export default function ConfigureRotationScreen({ route, navigation }: any) {
   const [maxValue, setMaxValue] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -79,6 +82,37 @@ export default function ConfigureRotationScreen({ route, navigation }: any) {
       onOk?.();
     } else {
       Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
+    }
+  };
+
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseDate = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartPicker(false);
+    }
+    if (selectedDate) {
+      setStartDate(formatDateToString(selectedDate));
+    }
+  };
+
+  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndPicker(false);
+    }
+    if (selectedDate) {
+      setEndDate(formatDateToString(selectedDate));
     }
   };
 
@@ -333,19 +367,73 @@ export default function ConfigureRotationScreen({ route, navigation }: any) {
               {selectedConstraintType === 'vacation_block' && (
                 <>
                   <Text style={styles.label}>Start Date *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="YYYY-MM-DD"
-                    value={startDate}
-                    onChangeText={setStartDate}
-                  />
+                  <View style={styles.dateInputRow}>
+                    <TextInput
+                      style={[styles.input, styles.dateInput]}
+                      placeholder="YYYY-MM-DD"
+                      value={startDate}
+                      onChangeText={setStartDate}
+                    />
+                    {Platform.OS !== 'web' && (
+                      <TouchableOpacity
+                        style={styles.calendarButton}
+                        onPress={() => setShowStartPicker(true)}
+                      >
+                        <Text style={styles.calendarIconButton}>📅</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {Platform.OS !== 'web' && showStartPicker && (
+                    <DateTimePicker
+                      value={parseDate(startDate)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleStartDateChange}
+                      maximumDate={endDate ? parseDate(endDate) : undefined}
+                    />
+                  )}
+                  {Platform.OS === 'ios' && showStartPicker && (
+                    <TouchableOpacity
+                      style={styles.doneButton}
+                      onPress={() => setShowStartPicker(false)}
+                    >
+                      <Text style={styles.doneButtonText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
                   <Text style={styles.label}>End Date *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="YYYY-MM-DD"
-                    value={endDate}
-                    onChangeText={setEndDate}
-                  />
+                  <View style={styles.dateInputRow}>
+                    <TextInput
+                      style={[styles.input, styles.dateInput]}
+                      placeholder="YYYY-MM-DD"
+                      value={endDate}
+                      onChangeText={setEndDate}
+                    />
+                    {Platform.OS !== 'web' && (
+                      <TouchableOpacity
+                        style={styles.calendarButton}
+                        onPress={() => setShowEndPicker(true)}
+                      >
+                        <Text style={styles.calendarIconButton}>📅</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  {Platform.OS !== 'web' && showEndPicker && (
+                    <DateTimePicker
+                      value={parseDate(endDate)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleEndDateChange}
+                      minimumDate={startDate ? parseDate(startDate) : undefined}
+                    />
+                  )}
+                  {Platform.OS === 'ios' && showEndPicker && (
+                    <TouchableOpacity
+                      style={styles.doneButton}
+                      onPress={() => setShowEndPicker(false)}
+                    >
+                      <Text style={styles.doneButtonText}>Done</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
 
@@ -632,6 +720,25 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  dateInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  dateInput: {
+    flex: 1,
+  },
+  calendarButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarIconButton: {
+    fontSize: 20,
   },
   chipList: {
     marginBottom: 8,
