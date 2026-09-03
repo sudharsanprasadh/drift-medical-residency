@@ -167,6 +167,12 @@ export default function ScheduleListScreen({ navigation }: any) {
           >
             <Text style={styles.manageRolesButtonText}>Guest Residents</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.manageRolesButton}
+            onPress={() => navigation.navigate('DutyHours')}
+          >
+            <Text style={styles.manageRolesButtonText}>Duty Hours</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
