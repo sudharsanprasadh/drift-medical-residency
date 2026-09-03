@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../services/AuthContext';
 import { getScheduleWeeks } from '../services/api';
 import { ScheduleWeek, ScheduleStatus } from '../types';
@@ -26,9 +27,11 @@ export default function ScheduleListScreen({ navigation }: any) {
     profile?.role === 'program_director' ||
     profile?.role === 'admin';
 
-  useEffect(() => {
-    loadSchedules();
-  }, [selectedTab]);
+  useFocusEffect(
+    useCallback(() => {
+      loadSchedules();
+    }, [selectedTab, profile?.program_id])
+  );
 
   const loadSchedules = async () => {
     if (!profile?.program_id) return;
@@ -151,12 +154,20 @@ export default function ScheduleListScreen({ navigation }: any) {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity
-          style={styles.manageRolesButton}
-          onPress={() => navigation.navigate('ManageRoles')}
-        >
-          <Text style={styles.manageRolesButtonText}>⚙️ Manage Roles</Text>
-        </TouchableOpacity>
+        <View style={styles.adminButtons}>
+          <TouchableOpacity
+            style={styles.manageRolesButton}
+            onPress={() => navigation.navigate('ManageRoles')}
+          >
+            <Text style={styles.manageRolesButtonText}>Manage Roles</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.manageRolesButton}
+            onPress={() => navigation.navigate('GuestResidents')}
+          >
+            <Text style={styles.manageRolesButtonText}>Guest Residents</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -236,12 +247,17 @@ const styles = StyleSheet.create({
     color: '#3498db',
     fontWeight: '600',
   },
+  adminButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 8,
+    marginVertical: 8,
+  },
   manageRolesButton: {
+    flex: 1,
     backgroundColor: '#fff',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginHorizontal: 8,
-    marginVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
