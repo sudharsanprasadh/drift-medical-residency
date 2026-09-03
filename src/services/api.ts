@@ -21,6 +21,10 @@ import {
   ComplianceSummary,
   ConstraintType,
   RotationAlgorithm,
+  ResidentRoleHours,
+  GuestRequest,
+  ApprovedGuest,
+  ExternalResidentSearchResult,
 } from '../types';
 
 // ============================================
@@ -311,9 +315,9 @@ export const duplicateScheduleWeek = async (
   weekId: string,
   numberOfWeeks: number,
   startDate: Date,
-  createdBy: string
+  createdBy: string,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<ScheduleWeek[]> => {
-  // Get the original week with all assignments
   const { data: originalWeek, error: weekError } = await supabase
     .from('schedule_weeks')
     .select('*')
@@ -322,7 +326,6 @@ export const duplicateScheduleWeek = async (
 
   if (weekError) throw weekError;
 
-  // Get all assignments for the original week
   const { data: assignments, error: assignmentsError } = await supabase
     .from('schedule_assignments')
     .select(`
@@ -333,93 +336,134 @@ export const duplicateScheduleWeek = async (
 
   if (assignmentsError) throw assignmentsError;
 
+  // Use string-based date math to avoid timezone issues
+  const parseDateParts = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return { y, m, d };
+  };
+
+  const addDaysToDateStr = (dateStr: string, days: number): string => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d + days));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  const formatDateUTC = (date: Date): string => {
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  const formatWeekName = (startStr: string, endStr: string): string => {
+    const [sy, sm, sd] = startStr.split('-').map(Number);
+    const [ey, em, ed] = endStr.split('-').map(Number);
+    const s = new Date(Date.UTC(sy, sm - 1, sd));
+    const e = new Date(Date.UTC(ey, em - 1, ed));
+    const startLabel = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const endLabel = e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return `Week of ${startLabel} - ${endLabel}`;
+  };
+
+  const origStartStr = originalWeek.start_date;
+  const origEndStr = originalWeek.end_date;
+  const origStartParts = parseDateParts(origStartStr);
+  const origStartUTC = new Date(Date.UTC(origStartParts.y, origStartParts.m - 1, origStartParts.d));
+  const origEndParts = parseDateParts(origEndStr);
+  const origEndUTC = new Date(Date.UTC(origEndParts.y, origEndParts.m - 1, origEndParts.d));
+  const weekDuration = Math.round((origEndUTC.getTime() - origStartUTC.getTime()) / (1000 * 60 * 60 * 24));
+
+  const inputStartStr = formatDateUTC(new Date(Date.UTC(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate()
+  )));
+
   const createdWeeks: ScheduleWeek[] = [];
 
-  // Calculate week duration
-  const originalStart = new Date(originalWeek.start_date);
-  const originalEnd = new Date(originalWeek.end_date);
-  const weekDuration = Math.ceil((originalEnd.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
-
-  // Create duplicates for each week
   for (let i = 0; i < numberOfWeeks; i++) {
-    // Add i weeks (7 days each) to the start date
-    const newStartDate = new Date(startDate.getTime() + (i * 7 * 24 * 60 * 60 * 1000));
+    const newStartStr = addDaysToDateStr(inputStartStr, i * 7);
+    const newEndStr = addDaysToDateStr(newStartStr, weekDuration);
+    const weekName = formatWeekName(newStartStr, newEndStr);
 
-    const newEndDate = new Date(newStartDate);
-    newEndDate.setDate(newStartDate.getDate() + weekDuration);
-
-    // Format dates
-    const formatDate = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
-    // Generate week name
-    const weekName = `Week of ${newStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${newEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-
-    // Create new week
     const { data: newWeek, error: createError } = await supabase
       .from('schedule_weeks')
       .insert({
         program_id: originalWeek.program_id,
         week_name: weekName,
-        start_date: formatDate(newStartDate),
-        end_date: formatDate(newEndDate),
-        notes: originalWeek.notes ? `Duplicated from: ${originalWeek.week_name}` : null,
+        start_date: newStartStr,
+        end_date: newEndStr,
+        notes: `Duplicated from: ${originalWeek.week_name}`,
         status: 'draft',
         created_by: createdBy,
       })
       .select()
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      await rollbackCreatedWeeks(createdWeeks);
+      throw createError;
+    }
 
-    // Duplicate assignments
-    if (assignments && assignments.length > 0) {
-      for (const assignment of assignments) {
-        const originalDate = new Date(assignment.shift_date);
-        const dayOffset = Math.ceil((originalDate.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
+    try {
+      if (assignments && assignments.length > 0) {
+        for (const assignment of assignments) {
+          const origShiftParts = parseDateParts(assignment.shift_date);
+          const origShiftUTC = new Date(Date.UTC(origShiftParts.y, origShiftParts.m - 1, origShiftParts.d));
+          const dayOffset = Math.round((origShiftUTC.getTime() - origStartUTC.getTime()) / (1000 * 60 * 60 * 24));
+          const newShiftDate = addDaysToDateStr(newStartStr, dayOffset);
 
-        const newShiftDate = new Date(newStartDate);
-        newShiftDate.setDate(newStartDate.getDate() + dayOffset);
+          const { data: newAssignment, error: assignError } = await supabase
+            .from('schedule_assignments')
+            .insert({
+              schedule_week_id: newWeek.id,
+              role_id: assignment.role_id,
+              shift_date: newShiftDate,
+              shift_period: assignment.shift_period,
+            })
+            .select()
+            .single();
 
-        // Create new assignment
-        const { data: newAssignment, error: assignError } = await supabase
-          .from('schedule_assignments')
-          .insert({
-            schedule_week_id: newWeek.id,
-            role_id: assignment.role_id,
-            shift_date: formatDate(newShiftDate),
-            shift_period: assignment.shift_period,
-          })
-          .select()
-          .single();
+          if (assignError) throw assignError;
 
-        if (assignError) throw assignError;
+          if (assignment.residents && assignment.residents.length > 0) {
+            const residentInserts = assignment.residents.map((resident: any) => ({
+              assignment_id: newAssignment.id,
+              resident_id: resident.resident_id,
+              is_backup: resident.is_backup,
+            }));
 
-        // Duplicate resident assignments
-        if (assignment.residents && assignment.residents.length > 0) {
-          const residentInserts = assignment.residents.map((resident: any) => ({
-            assignment_id: newAssignment.id,
-            resident_id: resident.resident_id,
-            is_backup: resident.is_backup,
-          }));
+            const { error: residentError } = await supabase
+              .from('schedule_assignment_residents')
+              .insert(residentInserts);
 
-          const { error: residentError } = await supabase
-            .from('schedule_assignment_residents')
-            .insert(residentInserts);
-
-          if (residentError) throw residentError;
+            if (residentError) throw residentError;
+          }
         }
       }
+    } catch (error) {
+      await rollbackCreatedWeeks([...createdWeeks, newWeek]);
+      throw error;
     }
 
     createdWeeks.push(newWeek);
+    onProgress?.(i + 1, numberOfWeeks);
   }
 
   return createdWeeks;
+};
+
+const rollbackCreatedWeeks = async (weeks: ScheduleWeek[]) => {
+  for (const week of weeks) {
+    try {
+      await supabase.from('schedule_assignment_residents')
+        .delete()
+        .in('assignment_id',
+          (await supabase.from('schedule_assignments').select('id').eq('schedule_week_id', week.id)).data?.map((a: any) => a.id) || []
+        );
+      await supabase.from('schedule_assignments').delete().eq('schedule_week_id', week.id);
+      await supabase.from('schedule_weeks').delete().eq('id', week.id);
+    } catch (_) {
+      // Best-effort cleanup
+    }
+  }
 };
 
 // ============================================
@@ -443,6 +487,12 @@ export const createScheduleRole = async (
     program_id: string;
     role_name: string;
     display_order?: number;
+    has_day_shift?: boolean;
+    has_night_shift?: boolean;
+    day_shift_start_time?: string | null;
+    day_shift_end_time?: string | null;
+    night_shift_start_time?: string | null;
+    night_shift_end_time?: string | null;
   }
 ): Promise<ScheduleRole> => {
   const { data, error } = await supabase
@@ -890,6 +940,20 @@ export const getComplianceSummary = async (
   };
 };
 
+export const getResidentRoleHours = async (
+  residentId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<ResidentRoleHours[]> => {
+  const { data, error } = await supabase.rpc('get_resident_role_hours', {
+    p_resident_id: residentId,
+    p_start_date: startDate || null,
+    p_end_date: endDate || null,
+  });
+  if (error) throw error;
+  return data || [];
+};
+
 // ============================================
 // Rotation Templates
 // ============================================
@@ -1010,4 +1074,107 @@ export const updateGenerationJob = async (
 
   if (error) throw error;
   return data;
+};
+
+// ============================================
+// Guest Resident Requests
+// ============================================
+
+export const getGuestRequests = async (
+  programId: string,
+  direction: 'outgoing' | 'incoming'
+): Promise<GuestRequest[]> => {
+  const column = direction === 'outgoing' ? 'requesting_program_id' : 'resident_program_id';
+  const { data, error } = await supabase
+    .from('program_guest_requests')
+    .select(`
+      *,
+      resident:profiles!program_guest_requests_resident_id_fkey(*),
+      requesting_program:programs!program_guest_requests_requesting_program_id_fkey(*),
+      resident_program:programs!program_guest_requests_resident_program_id_fkey(*),
+      requester:profiles!program_guest_requests_requested_by_fkey(*)
+    `)
+    .eq(column, programId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const createGuestRequest = async (
+  requestingProgramId: string,
+  residentId: string,
+  residentProgramId: string,
+  requestedBy: string,
+  notes?: string
+): Promise<GuestRequest> => {
+  const { data, error } = await supabase
+    .from('program_guest_requests')
+    .insert({
+      requesting_program_id: requestingProgramId,
+      resident_id: residentId,
+      resident_program_id: residentProgramId,
+      requested_by: requestedBy,
+      notes: notes || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const reviewGuestRequest = async (
+  requestId: string,
+  status: 'approved' | 'declined',
+  reviewedBy: string,
+  reviewNotes?: string
+): Promise<GuestRequest> => {
+  const { data, error } = await supabase
+    .from('program_guest_requests')
+    .update({
+      status,
+      reviewed_by: reviewedBy,
+      reviewed_at: new Date().toISOString(),
+      review_notes: reviewNotes || null,
+    })
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const revokeGuestRequest = async (
+  requestId: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('program_guest_requests')
+    .update({ status: 'revoked' })
+    .eq('id', requestId);
+
+  if (error) throw error;
+};
+
+export const getApprovedGuests = async (
+  programId: string
+): Promise<ApprovedGuest[]> => {
+  const { data, error } = await supabase.rpc('get_approved_guests', {
+    p_program_id: programId,
+  });
+  if (error) throw error;
+  return data || [];
+};
+
+export const searchExternalResidents = async (
+  requestingProgramId: string,
+  searchQuery: string
+): Promise<ExternalResidentSearchResult[]> => {
+  const { data, error } = await supabase.rpc('search_external_residents', {
+    p_requesting_program_id: requestingProgramId,
+    p_search_query: searchQuery,
+  });
+  if (error) throw error;
+  return data || [];
 };

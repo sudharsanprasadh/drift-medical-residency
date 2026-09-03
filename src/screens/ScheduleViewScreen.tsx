@@ -13,20 +13,23 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../services/AuthContext';
-import { getScheduleWeekById, getScheduleWeekGrid, publishScheduleWeek, deleteScheduleWeek, duplicateScheduleWeek } from '../services/api';
-import { ScheduleWeek, ScheduleGridCell } from '../types';
+import { getScheduleWeekById, getScheduleWeekGrid, getScheduleRoles, publishScheduleWeek, deleteScheduleWeek, duplicateScheduleWeek } from '../services/api';
+import { ScheduleWeek, ScheduleGridCell, ScheduleRole } from '../types';
 
 export default function ScheduleViewScreen({ route, navigation }: any) {
   const { weekId } = route.params;
   const { profile, user } = useAuth();
   const [week, setWeek] = useState<ScheduleWeek | null>(null);
   const [gridData, setGridData] = useState<ScheduleGridCell[]>([]);
+  const [roles, setRoles] = useState<ScheduleRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   const [numberOfWeeks, setNumberOfWeeks] = useState('4');
   const [duplicateStartDate, setDuplicateStartDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [duplicateProgress, setDuplicateProgress] = useState(0);
+  const [duplicateTotal, setDuplicateTotal] = useState(0);
 
   const isChief = profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
@@ -38,21 +41,31 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
   }, [weekId]);
 
   useEffect(() => {
-    // Set header title
     if (week) {
       navigation.setOptions({ title: week.week_name });
     }
   }, [week, navigation]);
 
+  useEffect(() => {
+    if (!duplicating) return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      e.preventDefault();
+      showAlert('Please Wait', 'Schedule duplication is in progress. Please wait for it to complete.');
+    });
+    return unsubscribe;
+  }, [duplicating, navigation]);
+
   const loadSchedule = async () => {
     try {
       setLoading(true);
-      const [weekData, gridDataResult] = await Promise.all([
+      const [weekData, gridDataResult, rolesData] = await Promise.all([
         getScheduleWeekById(weekId),
         getScheduleWeekGrid(weekId),
+        profile?.program_id ? getScheduleRoles(profile.program_id) : Promise.resolve([]),
       ]);
       setWeek(weekData);
       setGridData(gridDataResult);
+      setRoles(rolesData);
     } catch (error: any) {
       console.error('Error loading schedule:', error);
       showAlert('Error', 'Failed to load schedule');
@@ -112,24 +125,24 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
 
   const handleDuplicate = () => {
     if (!week) return;
-    // Set default start date to the week after the current one
-    const nextWeekStart = new Date(week.end_date);
-    nextWeekStart.setDate(nextWeekStart.getDate() + 1);
-    setDuplicateStartDate(formatDateToString(nextWeekStart));
+    const [y, m, d] = week.end_date.split('-').map(Number);
+    const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
+    setDuplicateStartDate(formatDateToString(nextDay));
     setDuplicateModalVisible(true);
   };
 
   const formatDateToString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
   const parseDate = (dateStr: string): Date => {
     if (!dateStr) return new Date();
-    const parsed = new Date(dateStr);
-    return isNaN(parsed.getTime()) ? new Date() : parsed;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return new Date();
+    return new Date(Date.UTC(y, m - 1, d));
   };
 
   const handleDateChange = (_event: any, selectedDate?: Date) => {
@@ -137,7 +150,10 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
       setShowDatePicker(false);
     }
     if (selectedDate) {
-      setDuplicateStartDate(formatDateToString(selectedDate));
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      setDuplicateStartDate(`${year}-${month}-${day}`);
     }
   };
 
@@ -156,19 +172,24 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     if (!user?.id) return;
 
     setDuplicating(true);
+    setDuplicateProgress(0);
+    setDuplicateTotal(weeks);
     try {
       const startDate = new Date(duplicateStartDate);
-      const createdWeeks = await duplicateScheduleWeek(weekId, weeks, startDate, user.id);
+      const createdWeeks = await duplicateScheduleWeek(weekId, weeks, startDate, user.id, (completed, total) => {
+        setDuplicateProgress(completed);
+        setDuplicateTotal(total);
+      });
 
+      setDuplicating(false);
       setDuplicateModalVisible(false);
       showAlert('Success', `Successfully created ${createdWeeks.length} schedule copies!`, () => {
         navigation.goBack();
       });
     } catch (error: any) {
       console.error('Error duplicating schedule:', error);
-      showAlert('Error', error.message || 'Failed to duplicate schedule');
-    } finally {
       setDuplicating(false);
+      showAlert('Error', error.message || 'Failed to duplicate schedule. Any partially created weeks have been cleaned up.');
     }
   };
 
@@ -250,6 +271,12 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     return acc;
   }, {} as Record<string, ScheduleGridCell[]>);
 
+  // Build role shift flags lookup by role_id
+  const roleShiftFlags = roles.reduce((acc, role) => {
+    acc[role.id] = { hasDayShift: role.has_day_shift !== false, hasNightShift: role.has_night_shift !== false };
+    return acc;
+  }, {} as Record<string, { hasDayShift: boolean; hasNightShift: boolean }>);
+
   // Get unique dates
   const uniqueDates = Array.from(new Set(gridData.map((c) => c.shift_date))).sort();
 
@@ -311,9 +338,14 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
 
           {/* Rows for each role */}
           <ScrollView showsVerticalScrollIndicator={true}>
-            {Object.entries(roleGroups).map(([roleName, cells]) => (
+            {Object.entries(roleGroups).map(([roleName, cells]) => {
+              const roleId = cells[0]?.role_id;
+              const flags = roleId ? roleShiftFlags[roleId] : undefined;
+              const showDay = flags ? flags.hasDayShift : true;
+              const showNight = flags ? flags.hasNightShift : true;
+              return (
               <View key={roleName}>
-                {/* Day shift row */}
+                {showDay && (
                 <View style={styles.gridRow}>
                   <View style={styles.roleCell}>
                     <Text style={styles.roleName}>{roleName}</Text>
@@ -328,8 +360,9 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
                     );
                   })}
                 </View>
+                )}
 
-                {/* Night shift row */}
+                {showNight && (
                 <View style={styles.gridRow}>
                   <View style={styles.roleCell}>
                     <Text style={styles.roleName}>{roleName}</Text>
@@ -344,8 +377,10 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
                     );
                   })}
                 </View>
+                )}
               </View>
-            ))}
+              );
+            })}
           </ScrollView>
         </View>
       </ScrollView>
@@ -447,26 +482,34 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
               </Text>
             </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setDuplicateModalVisible(false)}
-                disabled={duplicating}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton, duplicating && styles.saveButtonDisabled]}
-                onPress={performDuplicate}
-                disabled={duplicating}
-              >
-                {duplicating ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
+            {duplicating ? (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>
+                  Creating schedule {duplicateProgress} of {duplicateTotal}...
+                </Text>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: duplicateTotal > 0 ? `${(duplicateProgress / duplicateTotal) * 100}%` : '0%' }]} />
+                </View>
+                <Text style={styles.progressSubtext}>
+                  Please wait — do not navigate away
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setDuplicateModalVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={performDuplicate}
+                >
                   <Text style={styles.saveButtonText}>Create Copies</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -734,6 +777,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  progressContainer: {
+    marginTop: 8,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: '#ecf0f1',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#27ae60',
+    borderRadius: 5,
+  },
+  progressSubtext: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    marginTop: 8,
   },
   infoBar: {
     padding: 12,

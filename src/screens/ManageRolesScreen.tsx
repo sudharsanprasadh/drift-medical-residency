@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import {
@@ -19,6 +20,9 @@ import {
   deleteScheduleRole,
 } from '../services/api';
 import { ScheduleRole } from '../types';
+import { formatTimeDisplay, calculateShiftDurationHours, generateShiftTimeOptions } from '../utils/shiftHelpers';
+
+const TIME_OPTIONS = generateShiftTimeOptions();
 
 export default function ManageRolesScreen() {
   const { profile } = useAuth();
@@ -29,6 +33,13 @@ export default function ManageRolesScreen() {
   const [roleName, setRoleName] = useState('');
   const [displayOrder, setDisplayOrder] = useState('');
   const [saving, setSaving] = useState(false);
+  const [hasDayShift, setHasDayShift] = useState(true);
+  const [hasNightShift, setHasNightShift] = useState(true);
+  const [dayShiftStart, setDayShiftStart] = useState('07:00');
+  const [dayShiftEnd, setDayShiftEnd] = useState('19:00');
+  const [nightShiftStart, setNightShiftStart] = useState('19:00');
+  const [nightShiftEnd, setNightShiftEnd] = useState('07:00');
+  const [timePickerField, setTimePickerField] = useState<string | null>(null);
 
   useEffect(() => {
     loadRoles();
@@ -62,6 +73,12 @@ export default function ManageRolesScreen() {
     setEditingRole(null);
     setRoleName('');
     setDisplayOrder(String(roles.length));
+    setHasDayShift(true);
+    setHasNightShift(true);
+    setDayShiftStart('07:00');
+    setDayShiftEnd('19:00');
+    setNightShiftStart('19:00');
+    setNightShiftEnd('07:00');
     setModalVisible(true);
   };
 
@@ -69,6 +86,12 @@ export default function ManageRolesScreen() {
     setEditingRole(role);
     setRoleName(role.role_name);
     setDisplayOrder(String(role.display_order));
+    setHasDayShift(role.has_day_shift !== false);
+    setHasNightShift(role.has_night_shift !== false);
+    setDayShiftStart(role.day_shift_start_time || '07:00');
+    setDayShiftEnd(role.day_shift_end_time || '19:00');
+    setNightShiftStart(role.night_shift_start_time || '19:00');
+    setNightShiftEnd(role.night_shift_end_time || '07:00');
     setModalVisible(true);
   };
 
@@ -78,23 +101,33 @@ export default function ManageRolesScreen() {
       return;
     }
 
+    if (!hasDayShift && !hasNightShift) {
+      showAlert('Error', 'Please select at least one shift type (Day or Night)');
+      return;
+    }
+
     if (!profile?.program_id) return;
 
     setSaving(true);
     try {
+      const rolePayload = {
+        role_name: roleName.trim(),
+        display_order: parseInt(displayOrder) || 0,
+        has_day_shift: hasDayShift,
+        has_night_shift: hasNightShift,
+        day_shift_start_time: hasDayShift ? dayShiftStart : null,
+        day_shift_end_time: hasDayShift ? dayShiftEnd : null,
+        night_shift_start_time: hasNightShift ? nightShiftStart : null,
+        night_shift_end_time: hasNightShift ? nightShiftEnd : null,
+      };
+
       if (editingRole) {
-        // Update existing role
-        await updateScheduleRole(editingRole.id, {
-          role_name: roleName.trim(),
-          display_order: parseInt(displayOrder) || 0,
-        });
+        await updateScheduleRole(editingRole.id, rolePayload);
         showAlert('Success', 'Role updated successfully');
       } else {
-        // Create new role
         await createScheduleRole({
           program_id: profile.program_id,
-          role_name: roleName.trim(),
-          display_order: parseInt(displayOrder) || 0,
+          ...rolePayload,
         });
         showAlert('Success', 'Role created successfully');
       }
@@ -149,12 +182,43 @@ export default function ManageRolesScreen() {
     }
   };
 
+  const selectTime = (value: string) => {
+    if (!timePickerField) return;
+    switch (timePickerField) {
+      case 'dayStart': setDayShiftStart(value); break;
+      case 'dayEnd': setDayShiftEnd(value); break;
+      case 'nightStart': setNightShiftStart(value); break;
+      case 'nightEnd': setNightShiftEnd(value); break;
+    }
+    setTimePickerField(null);
+  };
+
   const renderRole = ({ item }: { item: ScheduleRole }) => (
     <View style={styles.roleCard}>
       <View style={styles.roleHeader}>
         <View style={styles.roleInfo}>
           <Text style={styles.roleName}>{item.role_name}</Text>
           <Text style={styles.roleOrder}>Order: {item.display_order}</Text>
+          <View style={styles.shiftBadges}>
+            {item.has_day_shift !== false && (
+              <View style={styles.shiftBadgeDay}>
+                <Text style={styles.shiftBadgeText}>
+                  Day {item.day_shift_start_time && item.day_shift_end_time
+                    ? `${formatTimeDisplay(item.day_shift_start_time)}-${formatTimeDisplay(item.day_shift_end_time)} (${calculateShiftDurationHours(item.day_shift_start_time, item.day_shift_end_time)}h)`
+                    : ''}
+                </Text>
+              </View>
+            )}
+            {item.has_night_shift !== false && (
+              <View style={styles.shiftBadgeNight}>
+                <Text style={styles.shiftBadgeText}>
+                  Night {item.night_shift_start_time && item.night_shift_end_time
+                    ? `${formatTimeDisplay(item.night_shift_start_time)}-${formatTimeDisplay(item.night_shift_end_time)} (${calculateShiftDurationHours(item.night_shift_start_time, item.night_shift_end_time)}h)`
+                    : ''}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         <View style={styles.roleActions}>
           <TouchableOpacity
@@ -174,6 +238,17 @@ export default function ManageRolesScreen() {
         </TouchableOpacity>
       </View>
     </View>
+  );
+
+  const renderTimeSelector = (label: string, value: string, field: string) => (
+    <TouchableOpacity
+      style={styles.timeSelector}
+      onPress={() => setTimePickerField(field)}
+      disabled={saving}
+    >
+      <Text style={styles.timeSelectorLabel}>{label}</Text>
+      <Text style={styles.timeSelectorValue}>{formatTimeDisplay(value)}</Text>
+    </TouchableOpacity>
   );
 
   if (loading && roles.length === 0) {
@@ -215,53 +290,141 @@ export default function ManageRolesScreen() {
       {/* Add/Edit Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{editingRole ? 'Edit Role' : 'Add New Role'}</Text>
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{editingRole ? 'Edit Role' : 'Add New Role'}</Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Role Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., PICU, NICU, A5 Senior"
-                value={roleName}
-                onChangeText={setRoleName}
-                editable={!saving}
-              />
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Role Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., PICU, NICU, A5 Senior"
+                  value={roleName}
+                  onChangeText={setRoleName}
+                  editable={!saving}
+                />
+              </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Display Order</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                keyboardType="numeric"
-                value={displayOrder}
-                onChangeText={setDisplayOrder}
-                editable={!saving}
-              />
-              <Text style={styles.helperText}>Lower numbers appear first in the schedule</Text>
-            </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Display Order</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  value={displayOrder}
+                  onChangeText={setDisplayOrder}
+                  editable={!saving}
+                />
+                <Text style={styles.helperText}>Lower numbers appear first in the schedule</Text>
+              </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setModalVisible(false)}
-                disabled={saving}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
-                )}
-              </TouchableOpacity>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Shift Types</Text>
+                <Text style={styles.helperText}>Select which shifts this role uses in the schedule</Text>
+                <View style={styles.checkboxRow}>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => setHasDayShift(!hasDayShift)}
+                    disabled={saving}
+                  >
+                    <View style={[styles.checkboxBox, hasDayShift && styles.checkboxChecked]}>
+                      {hasDayShift && <Text style={styles.checkboxMark}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Day Shift</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => setHasNightShift(!hasNightShift)}
+                    disabled={saving}
+                  >
+                    <View style={[styles.checkboxBox, hasNightShift && styles.checkboxChecked]}>
+                      {hasNightShift && <Text style={styles.checkboxMark}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Night Shift</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {hasDayShift && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Day Shift Timing</Text>
+                  <View style={styles.timeRow}>
+                    {renderTimeSelector('Start', dayShiftStart, 'dayStart')}
+                    <Text style={styles.timeSeparator}>to</Text>
+                    {renderTimeSelector('End', dayShiftEnd, 'dayEnd')}
+                  </View>
+                  <Text style={styles.durationText}>
+                    Duration: {calculateShiftDurationHours(dayShiftStart, dayShiftEnd)} hours
+                  </Text>
+                </View>
+              )}
+
+              {hasNightShift && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Night Shift Timing</Text>
+                  <View style={styles.timeRow}>
+                    {renderTimeSelector('Start', nightShiftStart, 'nightStart')}
+                    <Text style={styles.timeSeparator}>to</Text>
+                    {renderTimeSelector('End', nightShiftEnd, 'nightEnd')}
+                  </View>
+                  <Text style={styles.durationText}>
+                    Duration: {calculateShiftDurationHours(nightShiftStart, nightShiftEnd)} hours
+                  </Text>
+                  {calculateShiftDurationHours(nightShiftStart, nightShiftEnd) > 0 && nightShiftStart > nightShiftEnd && (
+                    <Text style={styles.midnightNote}>Crosses midnight (ends next day)</Text>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setModalVisible(false)}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
+                  onPress={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal visible={timePickerField !== null} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.timePickerContent}>
+            <Text style={styles.timePickerTitle}>Select Time</Text>
+            <FlatList
+              data={TIME_OPTIONS}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.timeOption}
+                  onPress={() => selectTime(item.value)}
+                >
+                  <Text style={styles.timeOptionText}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+              style={styles.timeList}
+            />
+            <TouchableOpacity
+              style={styles.timePickerCancel}
+              onPress={() => setTimePickerField(null)}
+            >
+              <Text style={styles.timePickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -332,6 +495,29 @@ const styles = StyleSheet.create({
   roleOrder: {
     fontSize: 12,
     color: '#7f8c8d',
+  },
+  shiftBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  shiftBadgeDay: {
+    backgroundColor: '#f39c12',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  shiftBadgeNight: {
+    backgroundColor: '#2c3e50',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  shiftBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#fff',
   },
   roleActions: {
     marginLeft: 12,
@@ -417,12 +603,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
+  },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
     width: '100%',
-    maxWidth: 500,
   },
   modalTitle: {
     fontSize: 20,
@@ -452,6 +644,80 @@ const styles = StyleSheet.create({
     color: '#95a5a6',
     marginTop: 4,
   },
+  checkboxRow: {
+    flexDirection: 'row',
+    gap: 24,
+    marginTop: 10,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkboxBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#bdc3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  checkboxChecked: {
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
+  },
+  checkboxMark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    fontSize: 15,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeSelector: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  timeSelectorLabel: {
+    fontSize: 11,
+    color: '#95a5a6',
+    marginBottom: 4,
+  },
+  timeSelectorValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  timeSeparator: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  durationText: {
+    fontSize: 13,
+    color: '#3498db',
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  midnightNote: {
+    fontSize: 11,
+    color: '#f39c12',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
@@ -480,6 +746,48 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  timePickerContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 350,
+    maxHeight: 450,
+    overflow: 'hidden',
+  },
+  timePickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  timeList: {
+    maxHeight: 340,
+  },
+  timeOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  timeOptionText: {
+    fontSize: 16,
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  timePickerCancel: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  timePickerCancelText: {
+    fontSize: 16,
+    color: '#e74c3c',
     fontWeight: '600',
   },
 });

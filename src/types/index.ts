@@ -1,5 +1,6 @@
 export type UserRole = 'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'faculty' | 'admin';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type GuestRequestStatus = 'pending' | 'approved' | 'declined' | 'revoked';
 export type PGYLevel = 'PGY0' | 'PGY1' | 'PGY2' | 'PGY3' | 'PGY4' | 'PGY5' | 'PGY6' | 'PGY7' | 'PGY8' | 'ALUMNI';
 
 export interface Program {
@@ -135,8 +136,25 @@ export interface ScheduleRole {
   role_name: string;
   display_order: number;
   is_active: boolean;
+  has_day_shift: boolean;
+  has_night_shift: boolean;
+  day_shift_start_time: string | null;
+  day_shift_end_time: string | null;
+  night_shift_start_time: string | null;
+  night_shift_end_time: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ResidentRoleHours {
+  role_id: string;
+  role_name: string;
+  total_shifts: number;
+  day_shifts: number;
+  night_shifts: number;
+  total_hours: number;
+  day_shift_hours: number;
+  night_shift_hours: number;
 }
 
 export interface ScheduleAssignment {
@@ -328,4 +346,45 @@ export interface Feedback {
   name: string | null;
   status: FeedbackStatus;
   created_at: string;
+}
+
+export interface GuestRequest {
+  id: string;
+  requesting_program_id: string;
+  resident_id: string;
+  resident_program_id: string;
+  requested_by: string;
+  status: GuestRequestStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  notes: string | null;
+  review_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  resident?: Profile;
+  requesting_program?: Program;
+  resident_program?: Program;
+  requester?: Profile;
+}
+
+export interface ApprovedGuest {
+  guest_request_id: string;
+  resident_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  pgy: string | null;
+  home_program_name: string;
+  home_program_id: string;
+}
+
+export interface ExternalResidentSearchResult {
+  resident_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  pgy: string | null;
+  program_id: string;
+  program_name: string;
+  existing_request_status: GuestRequestStatus | null;
 }
