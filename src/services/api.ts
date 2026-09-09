@@ -1178,3 +1178,43 @@ export const searchExternalResidents = async (
   if (error) throw error;
   return data || [];
 };
+
+// ============================================
+// Admin: Create Resident on Behalf
+// ============================================
+
+export const createResidentOnBehalf = async (residentData: {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone_number?: string;
+  pgy: PGYLevel;
+  specialty: string;
+  role?: string;
+}): Promise<{ success: boolean; user_id: string; email_sent: boolean; message: string }> => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+
+  const { data, error } = await supabase.functions.invoke('create-resident', {
+    body: residentData,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
+export const resendInviteEmail = async (email: string): Promise<{ success: boolean; message: string }> => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+
+  const { data, error } = await supabase.functions.invoke('resend-invite', {
+    body: { email },
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};

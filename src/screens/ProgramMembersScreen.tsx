@@ -8,10 +8,15 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  Modal,
+  Alert,
+  Platform,
+  FlatList,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
-import { getProgramMembers } from '../services/api';
-import { Profile, PGYLevel } from '../types';
+import { getProgramMembers, createResidentOnBehalf, resendInviteEmail, getSpecialties } from '../services/api';
+import { Profile, PGYLevel, Specialty } from '../types';
 
 export default function ProgramMembersScreen() {
   const { profile } = useAuth();
@@ -20,6 +25,27 @@ export default function ProgramMembersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'residents' | 'leadership'>('all');
+
+  // Add resident modal state
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newFirstName, setNewFirstName] = useState('');
+  const [newLastName, setNewLastName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newPGY, setNewPGY] = useState<PGYLevel | ''>('');
+  const [newSpecialty, setNewSpecialty] = useState('');
+  const [newRole, setNewRole] = useState<'resident' | 'chief_resident'>('resident');
+  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [showPGYPicker, setShowPGYPicker] = useState(false);
+  const [showSpecialtyPicker, setShowSpecialtyPicker] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
+
+  const isLeader =
+    profile?.role === 'chief_resident' ||
+    profile?.role === 'program_coordinator' ||
+    profile?.role === 'program_director' ||
+    profile?.role === 'admin';
 
   useEffect(() => {
     loadMembers();
@@ -43,6 +69,76 @@ export default function ProgramMembersScreen() {
     setRefreshing(true);
     await loadMembers();
     setRefreshing(false);
+  };
+
+  const showAlert = (title: string, message: string, onOk?: () => void) => {
+    if (Platform.OS === 'web') {
+      alert(`${title}\n\n${message}`);
+      onOk?.();
+    } else {
+      Alert.alert(title, message, onOk ? [{ text: 'OK', onPress: onOk }] : undefined);
+    }
+  };
+
+  const openAddModal = async () => {
+    setNewEmail('');
+    setNewFirstName('');
+    setNewLastName('');
+    setNewPhone('');
+    setNewPGY('');
+    setNewSpecialty('');
+    setNewRole('resident');
+    setAddModalVisible(true);
+
+    if (specialties.length === 0) {
+      try {
+        const data = await getSpecialties();
+        setSpecialties(data);
+      } catch (e) {
+        console.error('Error loading specialties:', e);
+      }
+    }
+  };
+
+  const handleCreateResident = async () => {
+    if (!newEmail.trim() || !newFirstName.trim() || !newLastName.trim() || !newPGY || !newSpecialty) {
+      showAlert('Required', 'Please fill in all required fields (email, first name, last name, PGY, specialty)');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const result = await createResidentOnBehalf({
+        email: newEmail.trim().toLowerCase(),
+        first_name: newFirstName.trim(),
+        last_name: newLastName.trim(),
+        phone_number: newPhone.trim() || undefined,
+        pgy: newPGY as PGYLevel,
+        specialty: newSpecialty,
+        role: newRole,
+      });
+
+      showAlert('Success', result.message, () => {
+        setAddModalVisible(false);
+        loadMembers();
+      });
+    } catch (error: any) {
+      showAlert('Error', error.message || 'Failed to create resident');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleResendInvite = async (email: string) => {
+    setResendingEmail(email);
+    try {
+      const result = await resendInviteEmail(email);
+      showAlert('Success', result.message);
+    } catch (error: any) {
+      showAlert('Error', error.message || 'Failed to resend invite');
+    } finally {
+      setResendingEmail(null);
+    }
   };
 
   const filterMembers = (members: Profile[]): Profile[] => {
@@ -187,6 +283,20 @@ export default function ProgramMembersScreen() {
           </View>
         </View>
       </View>
+
+      {isLeader && (
+        <TouchableOpacity
+          style={styles.resendButton}
+          onPress={() => handleResendInvite(member.email)}
+          disabled={resendingEmail === member.email}
+        >
+          {resendingEmail === member.email ? (
+            <ActivityIndicator size="small" color="#3498db" />
+          ) : (
+            <Text style={styles.resendButtonText}>Resend Invite</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -327,6 +437,194 @@ export default function ProgramMembersScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Add Resident FAB */}
+      {isLeader && (
+        <TouchableOpacity style={styles.fab} onPress={openAddModal}>
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Add Resident Modal */}
+      <Modal visible={addModalVisible} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Resident</Text>
+              <TouchableOpacity onPress={() => setAddModalVisible(false)} disabled={creating}>
+                <Text style={styles.closeIcon}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalForm} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalSubtitle}>
+                Create a profile on behalf of a resident. They'll receive an email to set their password.
+              </Text>
+
+              <Text style={styles.fieldLabel}>Email <Text style={styles.required}>*</Text></Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="resident@email.com"
+                value={newEmail}
+                onChangeText={setNewEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!creating}
+              />
+
+              <Text style={styles.fieldLabel}>First Name <Text style={styles.required}>*</Text></Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="First Name"
+                value={newFirstName}
+                onChangeText={setNewFirstName}
+                editable={!creating}
+              />
+
+              <Text style={styles.fieldLabel}>Last Name <Text style={styles.required}>*</Text></Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Last Name"
+                value={newLastName}
+                onChangeText={setNewLastName}
+                editable={!creating}
+              />
+
+              <Text style={styles.fieldLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Phone Number (optional)"
+                value={newPhone}
+                onChangeText={setNewPhone}
+                keyboardType="phone-pad"
+                editable={!creating}
+              />
+
+              <Text style={styles.fieldLabel}>Role</Text>
+              <View style={styles.roleRow}>
+                <TouchableOpacity
+                  style={[styles.roleOption, newRole === 'resident' && styles.roleOptionActive]}
+                  onPress={() => setNewRole('resident')}
+                  disabled={creating}
+                >
+                  <Text style={[styles.roleOptionText, newRole === 'resident' && styles.roleOptionTextActive]}>
+                    Resident
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.roleOption, newRole === 'chief_resident' && styles.roleOptionActive]}
+                  onPress={() => setNewRole('chief_resident')}
+                  disabled={creating}
+                >
+                  <Text style={[styles.roleOptionText, newRole === 'chief_resident' && styles.roleOptionTextActive]}>
+                    Chief Resident
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.fieldLabel}>PGY Level <Text style={styles.required}>*</Text></Text>
+              <TouchableOpacity
+                style={styles.fieldInput}
+                onPress={() => setShowPGYPicker(true)}
+                disabled={creating}
+              >
+                <Text style={newPGY ? styles.fieldInputText : styles.fieldPlaceholder}>
+                  {newPGY || 'Select PGY Level'}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.fieldLabel}>Specialty <Text style={styles.required}>*</Text></Text>
+              <TouchableOpacity
+                style={styles.fieldInput}
+                onPress={() => setShowSpecialtyPicker(true)}
+                disabled={creating}
+              >
+                <Text style={newSpecialty ? styles.fieldInputText : styles.fieldPlaceholder}>
+                  {newSpecialty || 'Select Specialty'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setAddModalVisible(false)}
+                disabled={creating}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.createButton, creating && { opacity: 0.6 }]}
+                onPress={handleCreateResident}
+                disabled={creating}
+              >
+                {creating ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.createButtonText}>Create & Send Invite</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* PGY Picker Modal */}
+      <Modal visible={showPGYPicker} animationType="slide" transparent>
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <Text style={styles.pickerTitle}>Select PGY Level</Text>
+            <FlatList
+              data={['PGY0', 'PGY1', 'PGY2', 'PGY3', 'PGY4', 'PGY5', 'PGY6', 'PGY7', 'PGY8'] as PGYLevel[]}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.pickerItem}
+                  onPress={() => {
+                    setNewPGY(item);
+                    setShowPGYPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={styles.pickerClose} onPress={() => setShowPGYPicker(false)}>
+              <Text style={styles.pickerCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Specialty Picker Modal */}
+      <Modal visible={showSpecialtyPicker} animationType="slide" transparent>
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <Text style={styles.pickerTitle}>Select Specialty</Text>
+            <FlatList
+              data={specialties}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.pickerItem}
+                  onPress={() => {
+                    setNewSpecialty(item.name);
+                    setShowSpecialtyPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerItemText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={styles.pickerClose} onPress={() => setShowSpecialtyPicker(false)}>
+              <Text style={styles.pickerCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -542,5 +840,204 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7f8c8d',
     textAlign: 'center',
+  },
+  resendButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#3498db',
+    alignItems: 'center',
+  },
+  resendButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3498db',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#27ae60',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 32,
+    color: '#fff',
+    fontWeight: '300',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  closeIcon: {
+    fontSize: 24,
+    color: '#7f8c8d',
+    paddingHorizontal: 8,
+  },
+  modalForm: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  required: {
+    color: '#e74c3c',
+  },
+  fieldInput: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 8,
+    justifyContent: 'center',
+  },
+  fieldInputText: {
+    fontSize: 15,
+    color: '#2c3e50',
+  },
+  fieldPlaceholder: {
+    fontSize: 15,
+    color: '#95a5a6',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+  },
+  roleOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  roleOptionActive: {
+    borderColor: '#3498db',
+    backgroundColor: '#ebf5fb',
+  },
+  roleOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7f8c8d',
+  },
+  roleOptionTextActive: {
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#ecf0f1',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#2c3e50',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  createButton: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#27ae60',
+    alignItems: 'center',
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  pickerContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '60%',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 16,
+  },
+  pickerItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  pickerItemText: {
+    fontSize: 16,
+    color: '#2c3e50',
+  },
+  pickerClose: {
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: '#ecf0f1',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  pickerCloseText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2c3e50',
   },
 });
