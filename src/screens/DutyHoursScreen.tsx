@@ -31,6 +31,7 @@ export default function DutyHoursScreen() {
     profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
     profile?.role === 'program_director' ||
+    profile?.role === 'associate_program_director' ||
     profile?.role === 'admin';
 
   useEffect(() => {

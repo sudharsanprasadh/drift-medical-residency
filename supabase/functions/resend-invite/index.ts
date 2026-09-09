@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     if (
       !callerProfile?.is_approved ||
-      !["chief_resident", "program_coordinator", "program_director", "admin"].includes(callerProfile.role)
+      !["chief_resident", "program_coordinator", "program_director", "associate_program_director", "admin"].includes(callerProfile.role)
     ) {
       return new Response(
         JSON.stringify({ error: "Only program leaders can resend invites" }),

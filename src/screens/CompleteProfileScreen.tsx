@@ -26,7 +26,7 @@ export default function CompleteProfileScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [role, setRole] = useState<'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'faculty'>('resident');
+  const [role, setRole] = useState<'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'associate_program_director' | 'faculty'>('resident');
 
   // PGY dropdown
   const [selectedPGY, setSelectedPGY] = useState<PGYLevel | ''>('');
@@ -86,7 +86,7 @@ export default function CompleteProfileScreen() {
     }
   };
 
-  const isLeadershipRole = role === 'chief_resident' || role === 'program_coordinator' || role === 'program_director';
+  const isLeadershipRole = role === 'chief_resident' || role === 'program_coordinator' || role === 'program_director' || role === 'associate_program_director';
 
   const handleSubmit = async () => {
     // Validation
@@ -248,6 +248,24 @@ export default function CompleteProfileScreen() {
                   ]}
                 >
                   Program Coordinator
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === 'associate_program_director' && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole('associate_program_director')}
+                disabled={loading}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === 'associate_program_director' && styles.roleButtonTextActive,
+                  ]}
+                >
+                  Assoc. Program Director
                 </Text>
               </TouchableOpacity>
 

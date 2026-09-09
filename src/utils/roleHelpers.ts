@@ -2,11 +2,11 @@ import { UserRole } from '../types';
 
 /**
  * Check if a user has leadership/management privileges
- * Leadership roles: chief_resident, program_coordinator, program_director, admin
+ * Leadership roles: chief_resident, program_coordinator, program_director, associate_program_director, admin
  */
 export const isLeadershipRole = (role: UserRole | null | undefined): boolean => {
   if (!role) return false;
-  return ['chief_resident', 'program_coordinator', 'program_director', 'admin'].includes(role);
+  return ['chief_resident', 'program_coordinator', 'program_director', 'associate_program_director', 'admin'].includes(role);
 };
 
 /**
@@ -43,6 +43,7 @@ export const formatRoleName = (role: UserRole): string => {
     chief_resident: 'Chief Resident',
     program_coordinator: 'Program Coordinator',
     program_director: 'Program Director',
+    associate_program_director: 'Associate Program Director',
     admin: 'Admin',
   };
   return roleMap[role] || role;
@@ -52,7 +53,7 @@ export const formatRoleName = (role: UserRole): string => {
  * Get all available roles for selection
  */
 export const getAllRoles = (): UserRole[] => {
-  return ['resident', 'faculty', 'chief_resident', 'program_coordinator', 'program_director'];
+  return ['resident', 'faculty', 'chief_resident', 'program_coordinator', 'associate_program_director', 'program_director'];
 };
 
 /**
@@ -65,6 +66,7 @@ export const getRoleDescription = (role: UserRole): string => {
     chief_resident: 'Manage approvals, create announcements, and manage events',
     program_coordinator: 'Manage approvals, create announcements, and manage events',
     program_director: 'Manage approvals, create announcements, and manage events',
+    associate_program_director: 'Manage approvals, create announcements, and manage events',
     admin: 'Full system access across all programs',
   };
   return descriptions[role] || '';

@@ -25,6 +25,7 @@ export default function ScheduleListScreen({ navigation }: any) {
   const isChief = profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
     profile?.role === 'program_director' ||
+    profile?.role === 'associate_program_director' ||
     profile?.role === 'admin';
 
   useFocusEffect(

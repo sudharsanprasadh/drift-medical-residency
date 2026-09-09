@@ -1,4 +1,4 @@
-export type UserRole = 'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'faculty' | 'admin';
+export type UserRole = 'resident' | 'chief_resident' | 'program_coordinator' | 'program_director' | 'associate_program_director' | 'faculty' | 'admin';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type GuestRequestStatus = 'pending' | 'approved' | 'declined' | 'revoked';
 export type PGYLevel = 'PGY0' | 'PGY1' | 'PGY2' | 'PGY3' | 'PGY4' | 'PGY5' | 'PGY6' | 'PGY7' | 'PGY8' | 'ALUMNI';

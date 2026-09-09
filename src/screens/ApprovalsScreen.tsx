@@ -217,11 +217,11 @@ export default function ApprovalsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-              {profile?.role === 'chief_resident'
+              {['chief_resident', 'associate_program_director'].includes(profile?.role || '')
                 ? 'No pending approvals from your program'
                 : 'No pending approvals'}
             </Text>
-            {profile?.role === 'chief_resident' && (
+            {['chief_resident', 'associate_program_director'].includes(profile?.role || '') && (
               <Text style={styles.emptySubtext}>
                 Only residents enrolling in your program will appear here
               </Text>

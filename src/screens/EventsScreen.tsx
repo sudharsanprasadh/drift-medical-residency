@@ -20,7 +20,7 @@ export default function EventsScreen({ navigation, route }: any) {
 
   const canManageEvents =
     profile?.is_approved &&
-    ['admin', 'program_coordinator', 'chief_resident'].includes(profile.role);
+    ['admin', 'program_coordinator', 'program_director', 'associate_program_director', 'chief_resident'].includes(profile.role);
 
   useEffect(() => {
     loadEvents();

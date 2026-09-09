@@ -69,6 +69,10 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
       return 'Program Director';
     } else if (role === 'program_coordinator') {
       return 'Program Coordinator';
+    } else if (role === 'program_director') {
+      return 'Program Director';
+    } else if (role === 'associate_program_director') {
+      return 'Assoc. Program Director';
     }
     return '';
   };

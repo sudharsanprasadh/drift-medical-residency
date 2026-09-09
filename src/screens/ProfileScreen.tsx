@@ -223,12 +223,14 @@ export default function ProfileScreen({ navigation }: any) {
           </Text>
 
           {/* Group members by role */}
-          {['admin', 'program_coordinator', 'chief_resident', 'resident'].map((roleType) => {
+          {['admin', 'program_director', 'associate_program_director', 'program_coordinator', 'chief_resident', 'resident'].map((roleType) => {
             const membersWithRole = programMembers.filter(m => m.role === roleType);
             if (membersWithRole.length === 0) return null;
 
             const roleLabel =
-              roleType === 'admin' ? 'Program Directors' :
+              roleType === 'admin' ? 'Admins' :
+              roleType === 'program_director' ? 'Program Directors' :
+              roleType === 'associate_program_director' ? 'Assoc. Program Directors' :
               roleType === 'program_coordinator' ? 'Program Coordinators' :
               roleType === 'chief_resident' ? 'Chief Residents' :
               'Residents';

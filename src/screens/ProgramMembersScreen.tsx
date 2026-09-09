@@ -50,6 +50,7 @@ export default function ProgramMembersScreen() {
     profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
     profile?.role === 'program_director' ||
+    profile?.role === 'associate_program_director' ||
     profile?.role === 'admin';
 
   useEffect(() => {
@@ -194,7 +195,7 @@ export default function ProgramMembersScreen() {
       filtered = filtered.filter((m) => m.role === 'resident');
     } else if (selectedFilter === 'leadership') {
       filtered = filtered.filter((m) =>
-        ['chief_resident', 'program_coordinator', 'program_director', 'faculty', 'admin'].includes(m.role)
+        ['chief_resident', 'program_coordinator', 'program_director', 'associate_program_director', 'faculty', 'admin'].includes(m.role)
       );
     }
 
@@ -258,6 +259,8 @@ export default function ProgramMembersScreen() {
         return 'Program Coordinator';
       case 'program_director':
         return 'Program Director';
+      case 'associate_program_director':
+        return 'Assoc. Program Director';
       case 'faculty':
         return 'Faculty';
       case 'admin':
@@ -277,6 +280,8 @@ export default function ProgramMembersScreen() {
         return '#9b59b6';
       case 'program_director':
         return '#8e44ad';
+      case 'associate_program_director':
+        return '#7e57c2';
       case 'faculty':
         return '#16a085';
       case 'admin':
@@ -400,7 +405,7 @@ export default function ProgramMembersScreen() {
 
   const filteredMembers = filterMembers(members);
   const leadership = filteredMembers.filter((m) =>
-    ['chief_resident', 'program_coordinator', 'program_director', 'faculty', 'admin'].includes(m.role)
+    ['chief_resident', 'program_coordinator', 'program_director', 'associate_program_director', 'faculty', 'admin'].includes(m.role)
   );
   const residents = filteredMembers.filter((m) => m.role === 'resident');
 
@@ -458,7 +463,7 @@ export default function ProgramMembersScreen() {
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
           <Text style={styles.summaryValue}>
-            {members.filter((m) => ['chief_resident', 'program_coordinator', 'program_director'].includes(m.role)).length}
+            {members.filter((m) => ['chief_resident', 'program_coordinator', 'program_director', 'associate_program_director'].includes(m.role)).length}
           </Text>
           <Text style={styles.summaryLabel}>Leadership</Text>
         </View>
