@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../services/AuthContext';
 
 // Auth Screens
@@ -222,7 +223,19 @@ function MainTabs() {
             fontWeight: 'bold',
           },
           tabBarActiveTintColor: '#3498db',
-          tabBarInactiveTintColor: '#7f8c8d',
+          tabBarInactiveTintColor: '#95a5a6',
+          tabBarStyle: {
+            backgroundColor: '#fff',
+            borderTopWidth: 1,
+            borderTopColor: '#ecf0f1',
+            paddingBottom: 4,
+            paddingTop: 4,
+            height: 56,
+          },
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '600',
+          },
         }}
       >
         <Tab.Screen
@@ -232,6 +245,9 @@ function MainTabs() {
             title: 'Drift',
             tabBarLabel: 'Home',
             headerShown: false,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home-outline" size={size} color={color} />
+            ),
           }}
         />
         <Tab.Screen
@@ -241,6 +257,9 @@ function MainTabs() {
             title: 'Events',
             tabBarLabel: 'Events',
             headerShown: false,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="calendar-outline" size={size} color={color} />
+            ),
           }}
         />
         <Tab.Screen
@@ -250,6 +269,9 @@ function MainTabs() {
             title: 'Schedule',
             tabBarLabel: 'Schedule',
             headerShown: false,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="grid-outline" size={size} color={color} />
+            ),
           }}
         />
         <Tab.Screen
@@ -258,6 +280,9 @@ function MainTabs() {
           options={{
             title: 'Shift Swaps',
             tabBarLabel: 'Swaps',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="swap-horizontal-outline" size={size} color={color} />
+            ),
           }}
         />
         {canManageApprovals && (
@@ -267,6 +292,9 @@ function MainTabs() {
             options={{
               title: 'Program Members',
               tabBarLabel: 'Members',
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="people-outline" size={size} color={color} />
+              ),
             }}
           />
         )}
@@ -276,6 +304,9 @@ function MainTabs() {
           options={{
             title: 'Profile',
             tabBarLabel: 'Profile',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person-outline" size={size} color={color} />
+            ),
           }}
         />
         {canManageApprovals && (
@@ -283,8 +314,11 @@ function MainTabs() {
             name="Approvals"
             component={ApprovalsScreen}
             options={{
-              title: 'Manage Approvals',
+              title: 'Approvals',
               tabBarLabel: 'Approvals',
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="checkmark-circle-outline" size={size} color={color} />
+              ),
             }}
           />
         )}
