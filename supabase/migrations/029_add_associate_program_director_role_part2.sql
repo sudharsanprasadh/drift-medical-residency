@@ -1,11 +1,5 @@
--- Migration 029: Add Associate Program Director role
--- Same privileges as Chief Resident, Program Director, Program Coordinator
-
--- Step 1: Add the new enum value
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'associate_program_director';
-
--- Step 2: Update RLS policies to include associate_program_director
--- We need to drop and recreate policies that check for leadership roles
+-- Migration 029 Part 2: Update RLS policies for Associate Program Director
+-- Run this AFTER part 1 has been committed
 
 -- ============================================================
 -- Profiles: allow associate_program_director to update approvals
