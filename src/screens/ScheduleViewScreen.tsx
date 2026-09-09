@@ -367,17 +367,44 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
           <Text style={styles.infoText}>
             {parseLocalDate(week.start_date).toLocaleDateString()} - {parseLocalDate(week.end_date).toLocaleDateString()}
           </Text>
-          <TouchableOpacity
-            style={[styles.viewToggle, myScheduleMode && styles.viewToggleActive]}
-            onPress={() => setMyScheduleMode(!myScheduleMode)}
-          >
-            <Text style={[styles.viewToggleText, myScheduleMode && styles.viewToggleTextActive]}>
-              {myScheduleMode ? 'My Shifts' : 'All Shifts'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.viewToggleGroup}>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, !myScheduleMode && styles.viewToggleBtnActive]}
+              onPress={() => setMyScheduleMode(false)}
+            >
+              <Text style={[styles.viewToggleBtnText, !myScheduleMode && styles.viewToggleBtnTextActive]}>All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, myScheduleMode && styles.viewToggleBtnActive]}
+              onPress={() => setMyScheduleMode(true)}
+            >
+              <Text style={[styles.viewToggleBtnText, myScheduleMode && styles.viewToggleBtnTextActive]}>Mine</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {week.notes && <Text style={styles.notesText}>{week.notes}</Text>}
       </View>
+
+      {/* Empty state for My Shifts */}
+      {myScheduleMode && !Object.entries(roleGroups).some(([, cells]) => {
+        const roleId = cells[0]?.role_id;
+        const flags = roleId ? roleShiftFlags[roleId] : undefined;
+        return ((flags ? flags.hasDayShift : true) && hasAnyAssignment(cells, 'day') && roleHasMe(cells, 'day'))
+          || ((flags ? flags.hasNightShift : true) && hasAnyAssignment(cells, 'night') && roleHasMe(cells, 'night'));
+      }) && (
+        <View style={styles.myShiftsEmpty}>
+          <Text style={styles.myShiftsEmptyTitle}>No shifts found</Text>
+          <Text style={styles.myShiftsEmptyText}>
+            You don't have any shifts assigned this week.
+          </Text>
+          <TouchableOpacity
+            style={styles.viewAllButton}
+            onPress={() => setMyScheduleMode(false)}
+          >
+            <Text style={styles.viewAllButtonText}>View All Shifts</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Grid with sticky header + frozen first column */}
       <View style={styles.gridContainer}>
@@ -920,25 +947,55 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     fontWeight: '500',
   },
-  viewToggle: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#ecf0f1',
+  viewToggleGroup: {
+    flexDirection: 'row',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#bdc3c7',
+    overflow: 'hidden',
   },
-  viewToggleActive: {
-    backgroundColor: '#2196f3',
-    borderColor: '#2196f3',
+  viewToggleBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#ecf0f1',
   },
-  viewToggleText: {
+  viewToggleBtnActive: {
+    backgroundColor: '#3498db',
+  },
+  viewToggleBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#7f8c8d',
   },
-  viewToggleTextActive: {
+  viewToggleBtnTextActive: {
     color: '#fff',
+  },
+  myShiftsEmpty: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  myShiftsEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  myShiftsEmptyText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  viewAllButton: {
+    backgroundColor: '#3498db',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  viewAllButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   notesText: {
     fontSize: 13,
