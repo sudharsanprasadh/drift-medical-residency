@@ -143,13 +143,21 @@ export default function EditScheduleScreen({ route, navigation }: any) {
     }
   };
 
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const getDatesInRange = (startDate: string, endDate: string): string[] => {
     const dates: string[] = [];
-    const current = new Date(startDate);
-    const end = new Date(endDate);
+    const current = parseLocalDate(startDate);
+    const end = parseLocalDate(endDate);
 
     while (current <= end) {
-      dates.push(current.toISOString().split('T')[0]);
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, '0');
+      const d = String(current.getDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${d}`);
       current.setDate(current.getDate() + 1);
     }
 
@@ -466,7 +474,7 @@ export default function EditScheduleScreen({ route, navigation }: any) {
   })();
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseLocalDate(dateStr);
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
     const month = date.getMonth() + 1;
     const day = date.getDate();

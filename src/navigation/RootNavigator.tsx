@@ -20,6 +20,7 @@ import EditAnnouncementScreen from '../screens/EditAnnouncementScreen';
 import EventsScreen from '../screens/EventsScreen';
 import CreateEventScreen from '../screens/CreateEventScreen';
 import EventDetailsScreen from '../screens/EventDetailsScreen';
+import EditEventScreen from '../screens/EditEventScreen';
 
 // Schedule Screens
 import ScheduleListScreen from '../screens/ScheduleListScreen';
@@ -116,6 +117,11 @@ function EventsStack() {
         name="CreateEvent"
         component={CreateEventScreen}
         options={{ title: 'Create Event' }}
+      />
+      <Stack.Screen
+        name="EditEvent"
+        component={EditEventScreen}
+        options={{ title: 'Edit Event' }}
       />
     </Stack.Navigator>
   );

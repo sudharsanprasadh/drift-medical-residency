@@ -64,8 +64,10 @@ export default function ScheduleListScreen({ navigation }: any) {
   };
 
   const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
     const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return `${startStr} - ${endStr}`;

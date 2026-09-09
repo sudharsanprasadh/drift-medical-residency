@@ -33,21 +33,42 @@ export default function CreateWeekScreen({ navigation }: any) {
     }
   };
 
+  const toDisplayDate = (isoDate: string): string => {
+    if (!isoDate) return '';
+    const parts = isoDate.split('-');
+    if (parts.length !== 3) return isoDate;
+    return `${parts[1]}/${parts[2]}/${parts[0]}`;
+  };
+
+  const fromDisplayDate = (display: string): string => {
+    if (!display) return '';
+    const parts = display.replace(/-/g, '/').split('/');
+    if (parts.length !== 3) return display;
+    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+  };
+
+  const handleStartTextChange = (text: string) => {
+    setStartDate(fromDisplayDate(text));
+  };
+
+  const handleEndTextChange = (text: string) => {
+    setEndDate(fromDisplayDate(text));
+  };
+
   const validateDates = () => {
     if (!startDate || !endDate) {
       showAlert('Error', 'Please enter both start and end dates');
       return false;
     }
 
-    // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-      showAlert('Error', 'Please use date format YYYY-MM-DD (e.g., 2024-07-01)');
+      showAlert('Error', 'Please use date format MM/DD/YYYY (e.g., 07/01/2024)');
       return false;
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseLocalDate(startDate);
+    const end = parseLocalDate(endDate);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       showAlert('Error', 'Invalid date format');
@@ -101,8 +122,8 @@ export default function CreateWeekScreen({ navigation }: any) {
 
   const suggestWeekName = () => {
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const start = parseLocalDate(startDate);
+      const end = parseLocalDate(endDate);
       const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       setWeekName(`Week of ${startStr} - ${endStr}`);
@@ -146,10 +167,11 @@ export default function CreateWeekScreen({ navigation }: any) {
     }
   };
 
-  const parseDate = (dateStr: string): Date => {
+  const parseLocalDate = (dateStr: string): Date => {
     if (!dateStr) return new Date();
-    const parsed = new Date(dateStr);
-    return isNaN(parsed.getTime()) ? new Date() : parsed;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return new Date();
+    return new Date(y, m - 1, d);
   };
 
   return (
@@ -166,7 +188,7 @@ export default function CreateWeekScreen({ navigation }: any) {
             <Text style={styles.label}>Week Name *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., Week of July 1-7, 2024"
+              placeholder="e.g., Week of Jul 1 - Jul 7, 2024"
               value={weekName}
               onChangeText={setWeekName}
               editable={!loading}
@@ -179,15 +201,34 @@ export default function CreateWeekScreen({ navigation }: any) {
           {/* Start Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Start Date *</Text>
-            <View style={styles.dateInputRow}>
-              <TextInput
-                style={[styles.input, styles.dateInput]}
-                placeholder="YYYY-MM-DD"
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
                 value={startDate}
-                onChangeText={setStartDate}
-                editable={!loading}
+                onChange={(e: any) => setStartDate(e.target.value)}
+                disabled={loading}
+                max={endDate || undefined}
+                style={{
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 8,
+                  padding: 14,
+                  fontSize: 16,
+                  border: '1px solid #e0e0e0',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                }}
               />
-              {Platform.OS !== 'web' && (
+            ) : (
+              <View style={styles.dateInputRow}>
+                <TextInput
+                  style={[styles.input, styles.dateInput]}
+                  placeholder="MM/DD/YYYY"
+                  value={toDisplayDate(startDate)}
+                  onChangeText={handleStartTextChange}
+                  editable={!loading}
+                  keyboardType="numeric"
+                />
                 <TouchableOpacity
                   style={styles.calendarButton}
                   onPress={() => setShowStartPicker(true)}
@@ -195,15 +236,15 @@ export default function CreateWeekScreen({ navigation }: any) {
                 >
                   <Text style={styles.calendarIconButton}>📅</Text>
                 </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            )}
             {Platform.OS !== 'web' && showStartPicker && (
               <DateTimePicker
-                value={parseDate(startDate)}
+                value={parseLocalDate(startDate)}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleStartDateChange}
-                maximumDate={endDate ? parseDate(endDate) : undefined}
+                maximumDate={endDate ? parseLocalDate(endDate) : undefined}
               />
             )}
             {Platform.OS === 'ios' && showStartPicker && (
@@ -219,15 +260,34 @@ export default function CreateWeekScreen({ navigation }: any) {
           {/* End Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>End Date *</Text>
-            <View style={styles.dateInputRow}>
-              <TextInput
-                style={[styles.input, styles.dateInput]}
-                placeholder="YYYY-MM-DD"
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
                 value={endDate}
-                onChangeText={setEndDate}
-                editable={!loading}
+                onChange={(e: any) => setEndDate(e.target.value)}
+                disabled={loading}
+                min={startDate || undefined}
+                style={{
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 8,
+                  padding: 14,
+                  fontSize: 16,
+                  border: '1px solid #e0e0e0',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                }}
               />
-              {Platform.OS !== 'web' && (
+            ) : (
+              <View style={styles.dateInputRow}>
+                <TextInput
+                  style={[styles.input, styles.dateInput]}
+                  placeholder="MM/DD/YYYY"
+                  value={toDisplayDate(endDate)}
+                  onChangeText={handleEndTextChange}
+                  editable={!loading}
+                  keyboardType="numeric"
+                />
                 <TouchableOpacity
                   style={styles.calendarButton}
                   onPress={() => setShowEndPicker(true)}
@@ -235,15 +295,15 @@ export default function CreateWeekScreen({ navigation }: any) {
                 >
                   <Text style={styles.calendarIconButton}>📅</Text>
                 </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            )}
             {Platform.OS !== 'web' && showEndPicker && (
               <DateTimePicker
-                value={parseDate(endDate)}
+                value={parseLocalDate(endDate)}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleEndDateChange}
-                minimumDate={startDate ? parseDate(startDate) : undefined}
+                minimumDate={startDate ? parseLocalDate(startDate) : undefined}
               />
             )}
             {Platform.OS === 'ios' && showEndPicker && (

@@ -182,7 +182,7 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     setDuplicateProgress(0);
     setDuplicateTotal(weeks);
     try {
-      const startDate = new Date(duplicateStartDate);
+      const startDate = parseLocalDate(duplicateStartDate);
       const createdWeeks = await duplicateScheduleWeek(weekId, weeks, startDate, user.id, (completed, total) => {
         setDuplicateProgress(completed);
         setDuplicateTotal(total);
@@ -200,8 +200,13 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     }
   };
 
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseLocalDate(dateStr);
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
     const dayNum = date.getDate();
     const month = date.getMonth() + 1;
@@ -360,7 +365,7 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
       <View style={styles.infoBar}>
         <View style={styles.infoRow}>
           <Text style={styles.infoText}>
-            {new Date(week.start_date).toLocaleDateString()} - {new Date(week.end_date).toLocaleDateString()}
+            {parseLocalDate(week.start_date).toLocaleDateString()} - {parseLocalDate(week.end_date).toLocaleDateString()}
           </Text>
           <TouchableOpacity
             style={[styles.viewToggle, myScheduleMode && styles.viewToggleActive]}

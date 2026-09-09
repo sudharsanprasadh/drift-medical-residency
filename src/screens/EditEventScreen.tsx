@@ -13,8 +13,8 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
-import { createEvent } from '../services/eventApi';
-import { EventType } from '../types';
+import { updateEvent } from '../services/eventApi';
+import { Event, EventType } from '../types';
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'conference', label: 'Conference' },
@@ -26,83 +26,78 @@ const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-export default function CreateEventScreen({ navigation }: any) {
+export default function EditEventScreen({ route, navigation }: any) {
+  const { event } = route.params as { event: Event };
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Form fields
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [eventType, setEventType] = useState<EventType>('meeting');
-  const [eventDate, setEventDate] = useState('');
-  const [eventTime, setEventTime] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState(60);
-  const [venue, setVenue] = useState('');
-  const [contactInfo, setContactInfo] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isPublished, setIsPublished] = useState(true);
+  const [title, setTitle] = useState(event.title);
+  const [description, setDescription] = useState(event.description || '');
+  const [eventType, setEventType] = useState<EventType>(event.event_type);
+  const [eventDate, setEventDate] = useState(event.event_date);
+  const [eventTime, setEventTime] = useState(event.event_time.substring(0, 5));
+  const [durationMinutes, setDurationMinutes] = useState(event.duration_minutes || 60);
+  const [venue, setVenue] = useState(event.venue);
+  const [contactInfo, setContactInfo] = useState(event.contact_info || '');
+  const [notes, setNotes] = useState(event.notes || '');
+  const [isPublished, setIsPublished] = useState(event.is_published);
 
-  // Modals
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const handleSubmit = async () => {
-    // Validation
     if (!title.trim()) {
-      showAlert('Please enter event title');
+      showAlertMsg('Please enter event title');
       return;
     }
     if (title.length < 3 || title.length > 200) {
-      showAlert('Title must be 3-200 characters');
+      showAlertMsg('Title must be 3-200 characters');
       return;
     }
     if (!eventDate) {
-      showAlert('Please enter event date');
+      showAlertMsg('Please enter event date');
       return;
     }
     if (!eventTime) {
-      showAlert('Please enter event time');
+      showAlertMsg('Please enter event time');
       return;
     }
     if (!venue.trim()) {
-      showAlert('Please enter venue');
+      showAlertMsg('Please enter venue');
       return;
     }
     if (venue.length < 2 || venue.length > 200) {
-      showAlert('Venue must be 2-200 characters');
+      showAlertMsg('Venue must be 2-200 characters');
       return;
     }
 
     setLoading(true);
     try {
-      await createEvent({
+      await updateEvent(event.id, {
         title: title.trim(),
         description: description.trim() || null,
         event_type: eventType,
         event_date: eventDate,
-        event_time: eventTime + ':00', // Add seconds
+        event_time: eventTime + ':00',
         duration_minutes: durationMinutes,
         venue: venue.trim(),
-        visibility: 'public',
         contact_info: contactInfo.trim() || null,
         notes: notes.trim() || null,
         is_published: isPublished,
-        program_id: profile!.program_id!,
-        creator_id: profile!.id,
       });
 
-      showAlert('Event created successfully', () => {
+      showAlertMsg('Event updated successfully', () => {
         navigation.navigate('EventsList', { refresh: Date.now() });
       });
     } catch (error: any) {
-      showAlert(`Error: ${error.message}`);
+      showAlertMsg(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const showAlert = (message: string, onOk?: () => void) => {
+  const showAlertMsg = (message: string, onOk?: () => void) => {
     if (Platform.OS === 'web') {
       alert(message);
       onOk?.();
@@ -113,7 +108,8 @@ export default function CreateEventScreen({ navigation }: any) {
 
   const formatDateForDisplay = (dateString: string): string => {
     if (!dateString) return 'Select Date';
-    const date = new Date(dateString);
+    const [y, m, d] = dateString.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
@@ -134,9 +130,9 @@ export default function CreateEventScreen({ navigation }: any) {
   const generateDateOptions = () => {
     const options: { label: string; value: string }[] = [];
     const today = new Date();
+    today.setDate(today.getDate() - 30);
 
-    // Generate next 90 days
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 180; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
@@ -149,7 +145,7 @@ export default function CreateEventScreen({ navigation }: any) {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
-        year: i > 30 ? 'numeric' : undefined,
+        year: 'numeric',
       });
 
       options.push({ label, value });
@@ -161,7 +157,6 @@ export default function CreateEventScreen({ navigation }: any) {
   const generateTimeOptions = () => {
     const options: { label: string; value: string }[] = [];
 
-    // Generate times from 6 AM to 11 PM in 30-minute intervals
     for (let hour = 6; hour < 24; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const hourStr = String(hour).padStart(2, '0');
@@ -181,9 +176,8 @@ export default function CreateEventScreen({ navigation }: any) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Create Event</Text>
+      <Text style={styles.title}>Edit Event</Text>
 
-      {/* Title */}
       <Text style={styles.label}>
         Title <Text style={styles.required}>*</Text>
       </Text>
@@ -196,7 +190,6 @@ export default function CreateEventScreen({ navigation }: any) {
         editable={!loading}
       />
 
-      {/* Event Type */}
       <Text style={styles.label}>
         Event Type <Text style={styles.required}>*</Text>
       </Text>
@@ -210,7 +203,6 @@ export default function CreateEventScreen({ navigation }: any) {
         </Text>
       </TouchableOpacity>
 
-      {/* Date */}
       <Text style={styles.label}>
         Date <Text style={styles.required}>*</Text>
       </Text>
@@ -224,7 +216,6 @@ export default function CreateEventScreen({ navigation }: any) {
         </Text>
       </TouchableOpacity>
 
-      {/* Time */}
       <Text style={styles.label}>
         Time <Text style={styles.required}>*</Text>
       </Text>
@@ -238,7 +229,6 @@ export default function CreateEventScreen({ navigation }: any) {
         </Text>
       </TouchableOpacity>
 
-      {/* Duration */}
       <Text style={styles.label}>Duration</Text>
       <View style={styles.durationRow}>
         <TouchableOpacity
@@ -276,7 +266,6 @@ export default function CreateEventScreen({ navigation }: any) {
         ))}
       </View>
 
-      {/* Venue */}
       <Text style={styles.label}>
         Venue <Text style={styles.required}>*</Text>
       </Text>
@@ -289,7 +278,6 @@ export default function CreateEventScreen({ navigation }: any) {
         editable={!loading}
       />
 
-      {/* Contact Info */}
       <Text style={styles.label}>Contact Information</Text>
       <TextInput
         style={styles.input}
@@ -300,7 +288,6 @@ export default function CreateEventScreen({ navigation }: any) {
         editable={!loading}
       />
 
-      {/* Description */}
       <Text style={styles.label}>Description</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
@@ -314,7 +301,6 @@ export default function CreateEventScreen({ navigation }: any) {
         editable={!loading}
       />
 
-      {/* Notes */}
       <Text style={styles.label}>Notes</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
@@ -328,7 +314,6 @@ export default function CreateEventScreen({ navigation }: any) {
         editable={!loading}
       />
 
-      {/* Publish Status */}
       <View style={styles.publishRow}>
         <TouchableOpacity
           style={styles.checkbox}
@@ -338,11 +323,10 @@ export default function CreateEventScreen({ navigation }: any) {
           <View style={[styles.checkboxBox, isPublished && styles.checkboxChecked]}>
             {isPublished && <Text style={styles.checkboxMark}>✓</Text>}
           </View>
-          <Text style={styles.checkboxLabel}>Publish immediately</Text>
+          <Text style={styles.checkboxLabel}>Published</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Buttons */}
       <TouchableOpacity
         style={[styles.submitButton, loading && styles.submitButtonDisabled]}
         onPress={handleSubmit}
@@ -351,7 +335,7 @@ export default function CreateEventScreen({ navigation }: any) {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitButtonText}>Create Event</Text>
+          <Text style={styles.submitButtonText}>Save Changes</Text>
         )}
       </TouchableOpacity>
 
@@ -363,7 +347,6 @@ export default function CreateEventScreen({ navigation }: any) {
         <Text style={styles.cancelButtonText}>Cancel</Text>
       </TouchableOpacity>
 
-      {/* Event Type Modal */}
       <Modal visible={showTypeModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -394,7 +377,6 @@ export default function CreateEventScreen({ navigation }: any) {
         </View>
       </Modal>
 
-      {/* Date Picker Modal */}
       <Modal visible={showDatePicker} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -425,7 +407,6 @@ export default function CreateEventScreen({ navigation }: any) {
         </View>
       </Modal>
 
-      {/* Time Picker Modal */}
       <Modal visible={showTimePicker} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -554,31 +535,6 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
   },
   presetButtonTextActive: {
-    color: '#fff',
-  },
-  visibilityRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  visibilityButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
-  visibilityActive: {
-    backgroundColor: '#3498db',
-    borderColor: '#3498db',
-  },
-  visibilityText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#7f8c8d',
-  },
-  visibilityTextActive: {
     color: '#fff',
   },
   publishRow: {
