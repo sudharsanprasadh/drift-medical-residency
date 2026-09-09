@@ -222,20 +222,6 @@ CREATE POLICY "Leadership can view feedback" ON feedback
   );
 
 -- ============================================================
--- Guest resident requests: allow associate_program_director to manage
--- ============================================================
-DROP POLICY IF EXISTS "Leadership can manage guest requests" ON guest_resident_requests;
-CREATE POLICY "Leadership can manage guest requests" ON guest_resident_requests
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid()
-        AND p.is_approved = true
-        AND p.role IN ('admin', 'chief_resident', 'program_coordinator', 'program_director', 'associate_program_director')
-    )
-  );
-
--- ============================================================
 -- Setup codes: allow associate_program_director to view
 -- ============================================================
 DROP POLICY IF EXISTS "Leaders can view their program setup code" ON program_setup_codes;
