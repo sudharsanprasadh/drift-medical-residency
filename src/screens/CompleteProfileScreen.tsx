@@ -37,6 +37,9 @@ export default function CompleteProfileScreen() {
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [showSpecialtyModal, setShowSpecialtyModal] = useState(false);
 
+  // Setup code (for leadership roles)
+  const [setupCode, setSetupCode] = useState('');
+
   // Program search
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -83,6 +86,8 @@ export default function CompleteProfileScreen() {
     }
   };
 
+  const isLeadershipRole = role === 'chief_resident' || role === 'program_coordinator' || role === 'program_director';
+
   const handleSubmit = async () => {
     // Validation
     if (!firstName || !lastName || !phoneNumber || !selectedSpecialty || !selectedProgram || !selectedPGY) {
@@ -100,6 +105,7 @@ export default function CompleteProfileScreen() {
         specialty: selectedSpecialty,
         program_id: selectedProgram.id,
         pgy: selectedPGY as PGYLevel,
+        ...(isLeadershipRole && setupCode.trim() ? { setup_code_input: setupCode.trim() } : {}),
       });
 
       await refreshProfile();
@@ -301,6 +307,24 @@ export default function CompleteProfileScreen() {
                   : 'Search and Select Program'}
               </Text>
             </TouchableOpacity>
+
+            {isLeadershipRole && (
+              <View style={styles.setupCodeSection}>
+                <Text style={styles.label}>Program Setup Code</Text>
+                <Text style={styles.setupCodeHint}>
+                  If you are the first leader for this program, enter the setup code provided by your program administrator to get auto-approved. Without it, your request will need manual approval.
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 6-character setup code (optional)"
+                  value={setupCode}
+                  onChangeText={setSetupCode}
+                  autoCapitalize="characters"
+                  maxLength={6}
+                  editable={!loading}
+                />
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -511,6 +535,21 @@ const styles = StyleSheet.create({
   placeholder: {
     fontSize: 16,
     color: '#95a5a6',
+  },
+  setupCodeSection: {
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 16,
+    backgroundColor: '#fef9e7',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f9e79f',
+  },
+  setupCodeHint: {
+    fontSize: 13,
+    color: '#7f6c00',
+    marginBottom: 12,
+    lineHeight: 18,
   },
   roleScrollContainer: {
     marginBottom: 16,

@@ -173,6 +173,12 @@ export default function ScheduleListScreen({ navigation }: any) {
           >
             <Text style={styles.manageRolesButtonText}>Duty Hours</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.manageRolesButton}
+            onPress={() => navigation.navigate('SetupCodes')}
+          >
+            <Text style={styles.manageRolesButtonText}>Setup Codes</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );

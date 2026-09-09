@@ -34,6 +34,7 @@ import ManageRolesScreen from '../screens/ManageRolesScreen';
 import SwapRequestsScreen from '../screens/SwapRequestsScreen';
 import CreateSwapRequestScreen from '../screens/CreateSwapRequestScreen';
 import GuestResidentsScreen from '../screens/GuestResidentsScreen';
+import SetupCodesScreen from '../screens/SetupCodesScreen';
 
 // Components
 import FloatingFeedbackButton from '../components/FloatingFeedbackButton';
@@ -187,6 +188,11 @@ function ScheduleStack() {
         name="GuestResidents"
         component={GuestResidentsScreen}
         options={{ title: 'Guest Residents' }}
+      />
+      <Stack.Screen
+        name="SetupCodes"
+        component={SetupCodesScreen}
+        options={{ title: 'Program Setup Codes' }}
       />
     </Stack.Navigator>
   );

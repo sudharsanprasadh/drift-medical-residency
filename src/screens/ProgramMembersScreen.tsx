@@ -15,7 +15,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
-import { getProgramMembers, createResidentOnBehalf, resendInviteEmail, getSpecialties } from '../services/api';
+import { getProgramMembers, createResidentOnBehalf, resendInviteEmail, getSpecialties, getSetupCode, regenerateSetupCode } from '../services/api';
 import { Profile, PGYLevel, Specialty } from '../types';
 
 export default function ProgramMembersScreen() {
@@ -41,6 +41,11 @@ export default function ProgramMembersScreen() {
   const [creating, setCreating] = useState(false);
   const [resendingEmail, setResendingEmail] = useState<string | null>(null);
 
+  // Setup code
+  const [setupCode, setSetupCode] = useState<string | null>(null);
+  const [showSetupCode, setShowSetupCode] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
   const isLeader =
     profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
@@ -49,7 +54,47 @@ export default function ProgramMembersScreen() {
 
   useEffect(() => {
     loadMembers();
+    if (isLeader && profile?.program_id) {
+      loadSetupCode();
+    }
   }, []);
+
+  const loadSetupCode = async () => {
+    if (!profile?.program_id) return;
+    try {
+      const code = await getSetupCode(profile.program_id);
+      setSetupCode(code);
+    } catch (e) {
+      console.error('Error loading setup code:', e);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!profile?.program_id) return;
+
+    const message = 'This will invalidate the current setup code. Any pending invitations using the old code will no longer work. Continue?';
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(message)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Regenerate Setup Code', message, [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Regenerate', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
+
+    if (!confirmed) return;
+
+    setRegenerating(true);
+    try {
+      const newCode = await regenerateSetupCode(profile.program_id);
+      setSetupCode(newCode);
+      showAlert('Success', `New setup code: ${newCode}`);
+    } catch (error: any) {
+      showAlert('Error', error.message || 'Failed to regenerate setup code');
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const loadMembers = async () => {
     if (!profile?.program_id) return;
@@ -361,6 +406,44 @@ export default function ProgramMembersScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Setup Code Banner */}
+      {isLeader && setupCode && (
+        <View style={styles.setupCodeBanner}>
+          <View style={styles.setupCodeRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.setupCodeLabel}>Program Setup Code</Text>
+              <Text style={styles.setupCodeHint}>
+                Share this code with new leaders to allow auto-approval
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.setupCodeToggle}
+              onPress={() => setShowSetupCode(!showSetupCode)}
+            >
+              <Text style={styles.setupCodeToggleText}>
+                {showSetupCode ? 'Hide' : 'Show'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {showSetupCode && (
+            <View style={styles.setupCodeDisplay}>
+              <Text style={styles.setupCodeValue}>{setupCode}</Text>
+              <TouchableOpacity
+                style={styles.regenerateButton}
+                onPress={handleRegenerateCode}
+                disabled={regenerating}
+              >
+                {regenerating ? (
+                  <ActivityIndicator size="small" color="#e67e22" />
+                ) : (
+                  <Text style={styles.regenerateButtonText}>Regenerate</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Summary Header */}
       <View style={styles.summaryBar}>
         <View style={styles.summaryItem}>
@@ -643,6 +726,63 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#7f8c8d',
+  },
+  setupCodeBanner: {
+    backgroundColor: '#fef9e7',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f9e79f',
+  },
+  setupCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  setupCodeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7f6c00',
+  },
+  setupCodeHint: {
+    fontSize: 12,
+    color: '#9a8c00',
+    marginTop: 2,
+  },
+  setupCodeToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#f9e79f',
+  },
+  setupCodeToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7f6c00',
+  },
+  setupCodeDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 12,
+  },
+  setupCodeValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    letterSpacing: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  regenerateButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e67e22',
+  },
+  regenerateButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#e67e22',
   },
   summaryBar: {
     flexDirection: 'row',

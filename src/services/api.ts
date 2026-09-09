@@ -53,6 +53,7 @@ export const completeProfile = async (
     specialty: string;
     program_id: string;
     pgy: PGYLevel;
+    setup_code_input?: string;
   }
 ) => {
   const { data, error } = await supabase
@@ -93,6 +94,63 @@ export const getProgram = async (programId: string): Promise<Program> => {
 
   if (error) throw error;
   return data;
+};
+
+// ============================================
+// PROGRAM SETUP CODE OPERATIONS
+// ============================================
+
+export const getSetupCode = async (programId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('program_setup_codes')
+    .select('setup_code')
+    .eq('program_id', programId)
+    .single();
+
+  if (error) return null;
+  return data?.setup_code || null;
+};
+
+export const regenerateSetupCode = async (programId: string): Promise<string> => {
+  const { data, error } = await supabase.rpc('regenerate_setup_code', {
+    p_program_id: programId,
+  });
+
+  if (error) throw error;
+  return data;
+};
+
+export interface ProgramSetupCode {
+  program_id: string;
+  setup_code: string;
+  program_name: string;
+  specialty: string;
+  location: string;
+}
+
+export const getAllSetupCodes = async (): Promise<ProgramSetupCode[]> => {
+  const { data, error } = await supabase
+    .from('program_setup_codes')
+    .select(`
+      program_id,
+      setup_code,
+      programs:program_id (
+        program_name,
+        specialty,
+        location
+      )
+    `)
+    .order('program_id');
+
+  if (error) throw error;
+
+  return (data || []).map((row: any) => ({
+    program_id: row.program_id,
+    setup_code: row.setup_code,
+    program_name: row.programs?.program_name || 'Unknown',
+    specialty: row.programs?.specialty || '',
+    location: row.programs?.location || '',
+  }));
 };
 
 // ============================================

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Platform,
   Modal,
   TextInput,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../services/AuthContext';
@@ -30,6 +32,11 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
   const [duplicating, setDuplicating] = useState(false);
   const [duplicateProgress, setDuplicateProgress] = useState(0);
   const [duplicateTotal, setDuplicateTotal] = useState(0);
+  const [myScheduleMode, setMyScheduleMode] = useState(false);
+
+  const frozenScrollRef = useRef<ScrollView>(null);
+  const dataScrollRef = useRef<ScrollView>(null);
+  const isSyncingScroll = useRef(false);
 
   const isChief = profile?.role === 'chief_resident' ||
     profile?.role === 'program_coordinator' ||
@@ -201,6 +208,22 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     return `${dayName}\n${month}/${dayNum}`;
   };
 
+  const handleFrozenScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (isSyncingScroll.current) return;
+    isSyncingScroll.current = true;
+    dataScrollRef.current?.scrollTo({ y: e.nativeEvent.contentOffset.y, animated: false });
+    isSyncingScroll.current = false;
+  };
+
+  const handleDataScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (isSyncingScroll.current) return;
+    isSyncingScroll.current = true;
+    frozenScrollRef.current?.scrollTo({ y: e.nativeEvent.contentOffset.y, animated: false });
+    isSyncingScroll.current = false;
+  };
+
+  const myName = profile ? `${profile.first_name} ${profile.last_name}` : '';
+
   const renderResidentList = (residents: string[], backupResidents: string[], isNight: boolean) => {
     if (!residents.length && !backupResidents.length) {
       return <Text style={[styles.emptyCell, isNight && styles.emptyCellNight]}>—</Text>;
@@ -227,8 +250,6 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     const backupResidents = shiftType === 'day' ? cell.day_backup_residents : cell.night_backup_residents;
     const isNight = shiftType === 'night';
 
-    // Check if current user is assigned to this cell
-    const myName = profile ? `${profile.first_name} ${profile.last_name}` : '';
     const isMyShift =
       residents.includes(myName) ||
       backupResidents.includes(myName);
@@ -277,6 +298,28 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
     return acc;
   }, {} as Record<string, { hasDayShift: boolean; hasNightShift: boolean }>);
 
+  const hasAnyAssignment = (cells: ScheduleGridCell[], shift: 'day' | 'night') => {
+    return cells.some((c) => {
+      if (shift === 'day') {
+        return c.day_residents.length > 0 || c.day_backup_residents.length > 0 || c.day_night_residents.length > 0 || c.day_night_backup_residents.length > 0;
+      }
+      return c.night_residents.length > 0 || c.night_backup_residents.length > 0 || c.day_night_residents.length > 0 || c.day_night_backup_residents.length > 0;
+    });
+  };
+
+  const cellHasMe = (cell: ScheduleGridCell, shift: 'day' | 'night') => {
+    if (shift === 'day') {
+      return cell.day_residents.includes(myName) || cell.day_backup_residents.includes(myName) ||
+        cell.day_night_residents.includes(myName) || cell.day_night_backup_residents.includes(myName);
+    }
+    return cell.night_residents.includes(myName) || cell.night_backup_residents.includes(myName) ||
+      cell.day_night_residents.includes(myName) || cell.day_night_backup_residents.includes(myName);
+  };
+
+  const roleHasMe = (cells: ScheduleGridCell[], shift: 'day' | 'night') => {
+    return cells.some((c) => cellHasMe(c, shift));
+  };
+
   // Get unique dates
   const uniqueDates = Array.from(new Set(gridData.map((c) => c.shift_date))).sort();
 
@@ -313,77 +356,125 @@ export default function ScheduleViewScreen({ route, navigation }: any) {
         </TouchableOpacity>
       )}
 
-      {/* Schedule info */}
+      {/* Schedule info + view toggle */}
       <View style={styles.infoBar}>
-        <Text style={styles.infoText}>
-          {new Date(week.start_date).toLocaleDateString()} - {new Date(week.end_date).toLocaleDateString()}
-        </Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoText}>
+            {new Date(week.start_date).toLocaleDateString()} - {new Date(week.end_date).toLocaleDateString()}
+          </Text>
+          <TouchableOpacity
+            style={[styles.viewToggle, myScheduleMode && styles.viewToggleActive]}
+            onPress={() => setMyScheduleMode(!myScheduleMode)}
+          >
+            <Text style={[styles.viewToggleText, myScheduleMode && styles.viewToggleTextActive]}>
+              {myScheduleMode ? 'My Shifts' : 'All Shifts'}
+            </Text>
+          </TouchableOpacity>
+        </View>
         {week.notes && <Text style={styles.notesText}>{week.notes}</Text>}
       </View>
 
-      {/* Grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-        <View>
-          {/* Header row with dates */}
-          <View style={styles.headerRow}>
+      {/* Grid with frozen first column */}
+      <View style={styles.gridContainer}>
+        {/* Frozen Role/Shift column */}
+        <View style={styles.frozenColumn}>
+          <View style={[styles.headerRow, styles.frozenHeaderCell]}>
             <View style={styles.roleHeaderCell}>
               <Text style={styles.roleHeaderText}>Role / Shift</Text>
             </View>
-            {uniqueDates.map((date) => (
-              <View key={date} style={styles.dateHeaderCell}>
-                <Text style={styles.dateHeaderText}>{formatDate(date)}</Text>
-              </View>
-            ))}
           </View>
-
-          {/* Rows for each role */}
-          <ScrollView showsVerticalScrollIndicator={true}>
+          <ScrollView
+            ref={frozenScrollRef}
+            onScroll={handleFrozenScroll}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+          >
             {Object.entries(roleGroups).map(([roleName, cells]) => {
               const roleId = cells[0]?.role_id;
               const flags = roleId ? roleShiftFlags[roleId] : undefined;
-              const showDay = flags ? flags.hasDayShift : true;
-              const showNight = flags ? flags.hasNightShift : true;
+              const showDay = (flags ? flags.hasDayShift : true) && hasAnyAssignment(cells, 'day') && (!myScheduleMode || roleHasMe(cells, 'day'));
+              const showNight = (flags ? flags.hasNightShift : true) && hasAnyAssignment(cells, 'night') && (!myScheduleMode || roleHasMe(cells, 'night'));
               return (
-              <View key={roleName}>
-                {showDay && (
-                <View style={styles.gridRow}>
-                  <View style={styles.roleCell}>
-                    <Text style={styles.roleName}>{roleName}</Text>
-                    <Text style={styles.shiftLabel}>Day</Text>
-                  </View>
-                  {uniqueDates.map((date) => {
-                    const cell = cells.find((c) => c.shift_date === date);
-                    return (
-                      <View key={`${roleName}-day-${date}`}>
-                        {cell ? renderGridCell(cell, 'day') : <View style={styles.gridCell}><Text style={styles.emptyCell}>—</Text></View>}
+                <View key={roleName}>
+                  {showDay && (
+                    <View style={styles.gridRow}>
+                      <View style={styles.roleCell}>
+                        <Text style={styles.roleName}>{roleName}</Text>
+                        <Text style={styles.shiftLabel}>Day</Text>
                       </View>
-                    );
-                  })}
-                </View>
-                )}
-
-                {showNight && (
-                <View style={styles.gridRow}>
-                  <View style={styles.roleCell}>
-                    <Text style={styles.roleName}>{roleName}</Text>
-                    <Text style={styles.shiftLabel}>Night</Text>
-                  </View>
-                  {uniqueDates.map((date) => {
-                    const cell = cells.find((c) => c.shift_date === date);
-                    return (
-                      <View key={`${roleName}-night-${date}`}>
-                        {cell ? renderGridCell(cell, 'night') : <View style={styles.gridCell}><Text style={styles.emptyCell}>—</Text></View>}
+                    </View>
+                  )}
+                  {showNight && (
+                    <View style={styles.gridRow}>
+                      <View style={styles.roleCell}>
+                        <Text style={styles.roleName}>{roleName}</Text>
+                        <Text style={styles.shiftLabel}>Night</Text>
                       </View>
-                    );
-                  })}
+                    </View>
+                  )}
                 </View>
-                )}
-              </View>
               );
             })}
           </ScrollView>
         </View>
-      </ScrollView>
+
+        {/* Scrollable date columns */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <View>
+            {/* Date headers */}
+            <View style={styles.headerRow}>
+              {uniqueDates.map((date) => (
+                <View key={date} style={styles.dateHeaderCell}>
+                  <Text style={styles.dateHeaderText}>{formatDate(date)}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Data rows */}
+            <ScrollView
+              ref={dataScrollRef}
+              onScroll={handleDataScroll}
+              scrollEventThrottle={16}
+              showsVerticalScrollIndicator={true}
+            >
+              {Object.entries(roleGroups).map(([roleName, cells]) => {
+                const roleId = cells[0]?.role_id;
+                const flags = roleId ? roleShiftFlags[roleId] : undefined;
+                const showDay = flags ? flags.hasDayShift : true;
+                const showNight = flags ? flags.hasNightShift : true;
+                return (
+                  <View key={roleName}>
+                    {showDay && (
+                      <View style={styles.gridRow}>
+                        {uniqueDates.map((date) => {
+                          const cell = cells.find((c) => c.shift_date === date);
+                          return (
+                            <View key={`${roleName}-day-${date}`}>
+                              {cell ? renderGridCell(cell, 'day') : <View style={styles.gridCell}><Text style={styles.emptyCell}>—</Text></View>}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                    {showNight && (
+                      <View style={styles.gridRow}>
+                        {uniqueDates.map((date) => {
+                          const cell = cells.find((c) => c.shift_date === date);
+                          return (
+                            <View key={`${roleName}-night-${date}`}>
+                              {cell ? renderGridCell(cell, 'night') : <View style={styles.gridCell}><Text style={styles.emptyCell}>—</Text></View>}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      </View>
 
       {/* Duplicate Modal */}
       <Modal visible={duplicateModalVisible} animationType="slide" transparent>
@@ -811,16 +902,61 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   infoText: {
     fontSize: 14,
     color: '#2c3e50',
     fontWeight: '500',
+  },
+  viewToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#ecf0f1',
+    borderWidth: 1,
+    borderColor: '#bdc3c7',
+  },
+  viewToggleActive: {
+    backgroundColor: '#2196f3',
+    borderColor: '#2196f3',
+  },
+  viewToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  viewToggleTextActive: {
+    color: '#fff',
   },
   notesText: {
     fontSize: 13,
     color: '#7f8c8d',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  gridContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  frozenColumn: {
+    width: 120,
+    borderRightWidth: 2,
+    borderRightColor: '#bdc3c7',
+    backgroundColor: '#fff',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  frozenHeaderCell: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#bdc3c7',
   },
   headerRow: {
     flexDirection: 'row',
@@ -832,8 +968,6 @@ const styles = StyleSheet.create({
     width: 120,
     padding: 12,
     justifyContent: 'center',
-    borderRightWidth: 1,
-    borderRightColor: '#bdc3c7',
   },
   roleHeaderText: {
     fontSize: 13,
@@ -865,8 +999,6 @@ const styles = StyleSheet.create({
     padding: 8,
     justifyContent: 'center',
     backgroundColor: '#fff',
-    borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
   },
   roleName: {
     fontSize: 13,

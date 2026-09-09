@@ -51,6 +51,13 @@ export default function EditScheduleScreen({ route, navigation }: any) {
   const [bulkSelectedResidents, setBulkSelectedResidents] = useState<Set<string>>(new Set());
   const [bulkSelectedBackups, setBulkSelectedBackups] = useState<Set<string>>(new Set());
   const [bulkShiftPeriod, setBulkShiftPeriod] = useState<ShiftPeriod>('day');
+
+  // Bulk remove state
+  const [bulkRemoveModalVisible, setBulkRemoveModalVisible] = useState(false);
+  const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [bulkRemoveProgress, setBulkRemoveProgress] = useState(0);
+  const [bulkRemoveTotal, setBulkRemoveTotal] = useState(0);
+  const [bulkRemoveSelected, setBulkRemoveSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [guestResidentIds, setGuestResidentIds] = useState<Set<string>>(new Set());
 
@@ -59,13 +66,13 @@ export default function EditScheduleScreen({ route, navigation }: any) {
   }, [weekId]);
 
   useEffect(() => {
-    if (!bulkAssigning) return;
+    if (!bulkAssigning && !bulkRemoving) return;
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
       e.preventDefault();
-      showAlert('Please Wait', 'Bulk assignment is in progress. Please wait for it to complete.');
+      showAlert('Please Wait', 'Bulk operation is in progress. Please wait for it to complete.');
     });
     return unsubscribe;
-  }, [bulkAssigning, navigation]);
+  }, [bulkAssigning, bulkRemoving, navigation]);
 
   const loadData = async () => {
     if (!profile?.program_id) return;
@@ -333,6 +340,108 @@ export default function EditScheduleScreen({ route, navigation }: any) {
     }
   };
 
+  const openBulkRemoveModal = () => {
+    if (selectedCells.size === 0) {
+      showAlert('No Cells Selected', 'Tap cells in the grid to select them first.');
+      return;
+    }
+    setBulkRemoveSelected(new Set());
+    setBulkRemoveModalVisible(true);
+  };
+
+  const getResidentsInSelectedCells = (): Profile[] => {
+    const residentIds = new Set<string>();
+    const cells = Array.from(selectedCells).map(parseCellKey);
+
+    for (const cell of cells) {
+      const assignment = getAssignment(cell.roleId, cell.date, bulkShiftPeriod);
+      if (assignment?.residents) {
+        for (const ar of assignment.residents) {
+          residentIds.add(ar.resident_id);
+        }
+      }
+    }
+
+    return residents.filter((r) => residentIds.has(r.id));
+  };
+
+  const toggleBulkRemoveResident = (residentId: string) => {
+    setBulkRemoveSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(residentId)) {
+        next.delete(residentId);
+      } else {
+        next.add(residentId);
+      }
+      return next;
+    });
+  };
+
+  const performBulkRemove = async () => {
+    if (bulkRemoveSelected.size === 0) {
+      showAlert('No Residents Selected', 'Please select at least one resident to remove.');
+      return;
+    }
+
+    const cells = Array.from(selectedCells).map(parseCellKey);
+    const assignmentResidentIds: string[] = [];
+
+    for (const cell of cells) {
+      const assignment = getAssignment(cell.roleId, cell.date, bulkShiftPeriod);
+      if (assignment?.residents) {
+        for (const ar of assignment.residents) {
+          if (bulkRemoveSelected.has(ar.resident_id)) {
+            assignmentResidentIds.push(ar.id);
+          }
+        }
+      }
+    }
+
+    if (assignmentResidentIds.length === 0) {
+      showAlert('Nothing to Remove', 'Selected residents are not assigned to any of the selected cells.');
+      return;
+    }
+
+    setBulkRemoving(true);
+    setBulkRemoveProgress(0);
+    setBulkRemoveTotal(assignmentResidentIds.length);
+
+    let completed = 0;
+    let errors = 0;
+
+    try {
+      for (const arId of assignmentResidentIds) {
+        try {
+          await removeResidentFromAssignment(arId);
+        } catch (e) {
+          errors++;
+          console.error('Error removing resident:', e);
+        }
+        completed++;
+        setBulkRemoveProgress(completed);
+      }
+
+      const updatedAssignments = await getScheduleAssignments(weekId);
+      setAssignments(updatedAssignments);
+
+      setBulkRemoving(false);
+      setBulkRemoveModalVisible(false);
+      exitBulkMode();
+
+      if (errors > 0) {
+        showAlert('Partial Success', `Removed with ${errors} error(s).`);
+      } else {
+        showAlert('Success', `Removed ${bulkRemoveSelected.size} resident(s) from ${cells.length} cell(s).`);
+      }
+    } catch (error: any) {
+      console.error('Error in bulk remove:', error);
+      setBulkRemoving(false);
+      const updatedAssignments = await getScheduleAssignments(weekId);
+      setAssignments(updatedAssignments);
+      showAlert('Error', error.message || 'Failed to complete bulk removal.');
+    }
+  };
+
   const pgyOrder = ['PGY0', 'PGY1', 'PGY2', 'PGY3', 'PGY4', 'PGY5', 'PGY6', 'PGY7', 'PGY8'];
 
   const residentsByPgy = (() => {
@@ -381,16 +490,16 @@ export default function EditScheduleScreen({ route, navigation }: any) {
         onPress={() => handleCellPress(roleId, date, shiftPeriod)}
       >
         {primaryResidents.length === 0 && backupResidents.length === 0 ? (
-          <Text style={styles.emptyCell}>—</Text>
+          <Text style={[styles.emptyCell, shiftPeriod === 'night' && styles.emptyCellNight]}>—</Text>
         ) : (
           <View>
             {primaryResidents.map((ar) => (
-              <Text key={ar.id} style={styles.residentName}>
+              <Text key={ar.id} style={[styles.residentName, shiftPeriod === 'night' && styles.residentNameNight]}>
                 {ar.resident?.first_name?.[0]}.{ar.resident?.last_name}
               </Text>
             ))}
             {backupResidents.map((ar) => (
-              <Text key={ar.id} style={styles.backupName}>
+              <Text key={ar.id} style={[styles.backupName, shiftPeriod === 'night' && styles.backupNameNight]}>
                 {ar.resident?.first_name?.[0]}.{ar.resident?.last_name} (B)
               </Text>
             ))}
@@ -619,14 +728,19 @@ export default function EditScheduleScreen({ route, navigation }: any) {
       </View>
 
       {/* Bulk mode floating bar */}
-      {bulkMode && !bulkModalVisible && (
+      {bulkMode && !bulkModalVisible && !bulkRemoveModalVisible && (
         <View style={styles.bulkFloatingBar}>
           <Text style={styles.bulkFloatingText}>
             {selectedCells.size} cell{selectedCells.size !== 1 ? 's' : ''} selected ({bulkShiftPeriod})
           </Text>
-          <TouchableOpacity style={styles.bulkAssignButton} onPress={openBulkAssignModal}>
-            <Text style={styles.bulkAssignButtonText}>Assign Residents</Text>
-          </TouchableOpacity>
+          <View style={styles.bulkFloatingButtons}>
+            <TouchableOpacity style={styles.bulkAssignButton} onPress={openBulkAssignModal}>
+              <Text style={styles.bulkAssignButtonText}>Assign</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bulkRemoveButton} onPress={openBulkRemoveModal}>
+              <Text style={styles.bulkRemoveButtonText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -734,6 +848,86 @@ export default function EditScheduleScreen({ route, navigation }: any) {
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.bulkConfirmButton} onPress={performBulkAssign}>
                     <Text style={styles.bulkConfirmButtonText}>Assign to All</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bulk remove modal */}
+      <Modal visible={bulkRemoveModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {bulkRemoving ? (
+              <View style={styles.bulkProgressContainer}>
+                <Text style={styles.modalTitle}>Removing Residents...</Text>
+                <Text style={styles.bulkProgressText}>
+                  {bulkRemoveProgress} of {bulkRemoveTotal} removals completed
+                </Text>
+                <View style={styles.bulkProgressBar}>
+                  <View style={[styles.bulkProgressFill, { width: bulkRemoveTotal > 0 ? `${(bulkRemoveProgress / bulkRemoveTotal) * 100}%` : '0%', backgroundColor: '#e74c3c' }]} />
+                </View>
+                <Text style={styles.bulkProgressSubtext}>Please wait — do not navigate away</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Bulk Remove Residents</Text>
+                <Text style={styles.modalSubtitle}>
+                  Remove from {selectedCells.size} cell{selectedCells.size !== 1 ? 's' : ''} ({bulkShiftPeriod} shift)
+                </Text>
+
+                {(() => {
+                  const assignedResidents = getResidentsInSelectedCells();
+                  if (assignedResidents.length === 0) {
+                    return (
+                      <View style={{ padding: 24, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 15, color: '#7f8c8d' }}>
+                          No residents assigned to the selected cells.
+                        </Text>
+                      </View>
+                    );
+                  }
+                  return (
+                    <ScrollView style={styles.residentList}>
+                      {assignedResidents.map((resident) => (
+                        <TouchableOpacity
+                          key={`bulk-remove-${resident.id}`}
+                          style={styles.residentItem}
+                          onPress={() => toggleBulkRemoveResident(resident.id)}
+                        >
+                          <View style={styles.residentNameRow}>
+                            <Text style={styles.residentItemText}>
+                              {resident.first_name} {resident.last_name}
+                            </Text>
+                            <View style={styles.pgyBadge}>
+                              <Text style={styles.pgyBadgeText}>{resident.pgy || '?'}</Text>
+                            </View>
+                            {guestResidentIds.has(resident.id) && (
+                              <View style={styles.guestBadge}>
+                                <Text style={styles.guestBadgeText}>Guest</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View style={[styles.checkbox, bulkRemoveSelected.has(resident.id) && styles.checkboxCheckedRemove]}>
+                            {bulkRemoveSelected.has(resident.id) && <Text style={styles.checkmark}>✓</Text>}
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  );
+                })()}
+
+                <View style={styles.bulkModalButtons}>
+                  <TouchableOpacity
+                    style={styles.bulkCancelButton}
+                    onPress={() => setBulkRemoveModalVisible(false)}
+                  >
+                    <Text style={styles.bulkCancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.bulkRemoveConfirmButton} onPress={performBulkRemove}>
+                    <Text style={styles.bulkConfirmButtonText}>Remove from All</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -904,15 +1098,24 @@ const styles = StyleSheet.create({
     color: '#bdc3c7',
     textAlign: 'center',
   },
+  emptyCellNight: {
+    color: '#95a5a6',
+  },
   residentName: {
     fontSize: 10,
     color: '#2c3e50',
     marginBottom: 2,
   },
+  residentNameNight: {
+    color: '#ffffff',
+  },
   backupName: {
     fontSize: 9,
     color: '#7f8c8d',
     fontStyle: 'italic',
+  },
+  backupNameNight: {
+    color: '#bdc3c7',
   },
   footer: {
     padding: 16,
@@ -1084,6 +1287,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  bulkFloatingButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   bulkAssignButton: {
     backgroundColor: '#27ae60',
     paddingVertical: 10,
@@ -1094,6 +1301,28 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  bulkRemoveButton: {
+    backgroundColor: '#e74c3c',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+  },
+  bulkRemoveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bulkRemoveConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#e74c3c',
+    alignItems: 'center',
+  },
+  checkboxCheckedRemove: {
+    backgroundColor: '#e74c3c',
+    borderColor: '#e74c3c',
   },
   bulkModalButtons: {
     flexDirection: 'row',
