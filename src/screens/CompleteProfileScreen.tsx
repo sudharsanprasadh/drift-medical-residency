@@ -106,10 +106,10 @@ export default function CompleteProfileScreen() {
 
       Alert.alert(
         'Profile Submitted',
-        `Your profile has been submitted for approval. ${
+        `Your profile has been submitted. ${
           role === 'resident' || role === 'faculty'
             ? 'A Chief Resident, Program Coordinator, or Program Director from your program will review it.'
-            : 'An Admin or existing leadership member will review it.'
+            : 'If you are the first leader for this program, you will be approved automatically. Otherwise, an existing leader will review it.'
         }`
       );
     } catch (error: any) {
